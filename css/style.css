@@ -1,0 +1,213 @@
+/* AE ダークテーマに合わせた配色 */
+:root {
+  --bg-base:      #1a1a1a;
+  --bg-surface:   #252525;
+  --bg-elevated:  #2e2e2e;
+  --bg-canvas:    #141414;
+  --border:       #3a3a3a;
+  --text:         #cccccc;
+  --text-muted:   #777777;
+  --accent:       #1a9cd8;
+  --handle-p1:    #e8a020;   /* オレンジ: P1 (out tangent) */
+  --handle-p2:    #38b8e0;   /* シアン: P2 (in tangent) */
+  --curve:        #ffffff;
+  --grid:         #2a2a2a;
+  --diagonal:     #383838;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-base);
+  overflow-x: hidden;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 240px;
+}
+
+/* ── カーブキャンバス ── */
+#canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+#curveCanvas {
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: crosshair;
+  display: block;
+}
+
+/* ── 数値入力 ── */
+#coord-area {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 8px;
+}
+
+.coord-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.handle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.p1-dot { background: var(--handle-p1); }
+.p2-dot { background: var(--handle-p2); }
+
+.coord-row label {
+  width: 16px;
+  color: var(--text-muted);
+}
+
+.coord-row input[type="number"] {
+  width: 60px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 2px 4px;
+  text-align: right;
+}
+
+.coord-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── CSS cubic-bezier 表示 ── */
+#css-value-wrap {
+  text-align: center;
+}
+
+.css-value {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: "Consolas", monospace;
+}
+
+/* ── プリセット ── */
+.section-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#preset-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+#preset-buttons button {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 10px;
+  padding: 4px 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+#preset-buttons button:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+}
+
+#preset-buttons button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── オプション ── */
+#options-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.checkbox-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── 適用ボタン ── */
+#btnApply {
+  width: 100%;
+  padding: 7px;
+  background: var(--accent);
+  border: none;
+  border-radius: 3px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+#btnApply:hover { opacity: 0.85; }
+#btnApply:active { opacity: 0.7; }
+#btnApply:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* ── ステータスバー ── */
+#status-bar {
+  padding: 2px 0;
+  min-height: 16px;
+}
+
+#statusText {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+#statusText.success { color: #5cb85c; }
+#statusText.error   { color: #e05252; }
+#statusText.info    { color: var(--accent); }

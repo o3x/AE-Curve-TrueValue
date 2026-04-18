@@ -1,4 +1,5 @@
 .DS_Store
 .vscode/
+.ai/
 node_modules/
 *.log

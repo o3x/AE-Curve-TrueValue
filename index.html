@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curve-TrueValue</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- カーブキャンバスエリア -->
+    <div id="canvas-wrap">
+      <canvas id="curveCanvas" width="240" height="240"></canvas>
+    </div>
+
+    <!-- 数値入力: P1 / P2 -->
+    <div id="coord-area">
+      <div class="coord-row">
+        <span class="handle-dot p1-dot"></span>
+        <label>P1</label>
+        <input type="number" id="p1x" step="0.01" min="-1" max="2" value="0.42">
+        <input type="number" id="p1y" step="0.01" min="-1" max="2" value="0.00">
+      </div>
+      <div class="coord-row">
+        <span class="handle-dot p2-dot"></span>
+        <label>P2</label>
+        <input type="number" id="p2x" step="0.01" min="-1" max="2" value="0.58">
+        <input type="number" id="p2y" step="0.01" min="-1" max="2" value="1.00">
+      </div>
+    </div>
+
+    <!-- CSS cubic-bezier 表示 -->
+    <div id="css-value-wrap">
+      <span id="cssValue" class="css-value"></span>
+    </div>
+
+    <!-- プリセット -->
+    <div id="preset-area">
+      <div class="section-label">プリセット</div>
+      <div id="preset-buttons"></div>
+    </div>
+
+    <!-- オプション -->
+    <div id="options-area">
+      <label class="checkbox-row">
+        <input type="checkbox" id="optLinearSpatial" checked>
+        <span>空間補完をリニアに（ブーメラン防止）</span>
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="optSplitDimensions">
+        <span>次元を分割（Position）</span>
+      </label>
+    </div>
+
+    <!-- 適用ボタン -->
+    <div id="apply-area">
+      <button id="btnApply">選択KFに適用</button>
+    </div>
+
+    <!-- ステータスバー -->
+    <div id="status-bar">
+      <span id="statusText">準備完了</span>
+    </div>
+
+  </div>
+
+  <script src="js/cubicBezier.js"></script>
+  <script src="js/curveEditor.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
