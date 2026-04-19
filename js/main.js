@@ -6,7 +6,7 @@
  * Date: Sun Apr 19 09:31:46 JST 2026
  */
 
-const VERSION = '0.4.4';
+const VERSION = '0.4.5';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [

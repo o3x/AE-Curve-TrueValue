@@ -2,7 +2,7 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.4.0
+ * Version: 0.4.5
  * Date: Sun Apr 19 09:31:46 JST 2026
  *
  * 関数一覧:
@@ -11,6 +11,54 @@
  *     argsJson: { nodes, linearSpatial, splitDimensions }
  *     nodes が 2 点なら単一セグメント、3 点以上なら中間 KF を生成
  */
+
+// ── JSON ポリフィル（ExtendScript には JSON が存在しないため） ──
+if (typeof JSON === 'undefined') {
+    JSON = {};
+}
+if (typeof JSON.stringify !== 'function') {
+    JSON.stringify = function (val) {
+        if (val === null) return 'null';
+        var t = typeof val;
+        if (t === 'undefined') return undefined;
+        if (t === 'boolean') return val ? 'true' : 'false';
+        if (t === 'number') return isFinite(val) ? String(val) : 'null';
+        if (t === 'string') {
+            return '"' + val.replace(/\\/g, '\\\\')
+                            .replace(/"/g,  '\\"')
+                            .replace(/\n/g, '\\n')
+                            .replace(/\r/g, '\\r')
+                            .replace(/\t/g, '\\t') + '"';
+        }
+        if (t === 'object') {
+            var i, out;
+            if (val instanceof Array) {
+                out = [];
+                for (i = 0; i < val.length; i++) {
+                    var sv = JSON.stringify(val[i]);
+                    out.push(sv === undefined ? 'null' : sv);
+                }
+                return '[' + out.join(',') + ']';
+            }
+            out = [];
+            for (var k in val) {
+                if (val.hasOwnProperty(k)) {
+                    var vv = JSON.stringify(val[k]);
+                    if (vv !== undefined) {
+                        out.push(JSON.stringify(k) + ':' + vv);
+                    }
+                }
+            }
+            return '{' + out.join(',') + '}';
+        }
+        return undefined;
+    };
+}
+if (typeof JSON.parse !== 'function') {
+    JSON.parse = function (str) {
+        return eval('(' + str + ')');
+    };
+}
 
 // ── cubic-bezier → AE ease 変換 ────────────────────────────
 function calcAeEase(p1x, p1y, p2x, p2y, valueDelta, timeDelta) {
