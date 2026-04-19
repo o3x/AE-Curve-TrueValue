@@ -28,8 +28,8 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 
 ### CEP デバッグモードを有効化
 ```powershell
-reg add "HKCU\Software\Adobe\CSXS.11" /v PlayerDebugMode /t REG_STRING /d 1 /f
-reg add "HKCU\Software\Adobe\CSXS.10" /v PlayerDebugMode /t REG_STRING /d 1 /f
+reg add "HKCU\Software\Adobe\CSXS.11" /v PlayerDebugMode /t REG_SZ /d 1 /f
+reg add "HKCU\Software\Adobe\CSXS.10" /v PlayerDebugMode /t REG_SZ /d 1 /f
 ```
 
 ### AE 拡張フォルダにシンボリックリンクを作成（管理者 PowerShell）
