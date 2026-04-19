@@ -142,7 +142,8 @@ function applyEase(argsJson) {
                 var prop = props[i];
                 if (prop.numKeys === 0) continue;
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
-                if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
+                var hasEaseFn = typeof prop.getTemporalEaseAtKey === 'function';
+                if (!hasEaseFn) { appliedCount = -1; break; } // 診断: getTemporalEaseAtKey なし
 
                 // 次元分割オプション
                 // dimensionsSeparated は Position 系のみ有効 → matchName で判定
@@ -151,7 +152,7 @@ function applyEase(argsJson) {
                         var mn = prop.matchName;
                         if (mn === 'ADBE Position' || mn === 'ADBE Position_0') {
                             prop.dimensionsSeparated = true;
-                            continue;
+                            appliedCount = -2; break; // 診断: splitDimensions でスキップ
                         }
                     } catch (dimErr) { /* 非対応は無視 */ }
                 }
@@ -193,8 +194,10 @@ function applyEase(argsJson) {
             app.endUndoGroup();
         }
 
-        if (appliedCount === 0) {
-            var dbg = 'props=' + props.length;
+        if (appliedCount <= 0) {
+            var reason = appliedCount === -1 ? 'getTemporalEaseAtKey なし' :
+                         appliedCount === -2 ? 'splitDimensions でスキップ' : 'KF 未選択';
+            var dbg = reason + ' props=' + props.length;
             for (var di = 0; di < props.length; di++) {
                 var dp = props[di];
                 var selKeys = [];
