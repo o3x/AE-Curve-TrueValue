@@ -84,6 +84,7 @@ function getSelectedKfData() {
             var prop = props[i];
             if (prop.numKeys === 0) continue;
             if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
+            if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
             for (var k = 1; k <= prop.numKeys; k++) {
                 if (!prop.keySelected(k) || k >= prop.numKeys) continue;
                 var timeA = prop.keyTime(k), timeB = prop.keyTime(k + 1);
@@ -141,6 +142,7 @@ function applyEase(argsJson) {
                 var prop = props[i];
                 if (prop.numKeys === 0) continue;
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
+                if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
 
                 // 次元分割オプション
                 // dimensionsSeparated は Position 系のみ有効 → matchName で判定
