@@ -109,6 +109,54 @@ body {
   padding: 2px 0;
 }
 
+/* ── ノードコントロール（スムーズ/コーナー/削除） ── */
+#node-controls {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 6px;
+}
+
+.nc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nc-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.nc-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 10px;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+
+.nc-btn:hover { background: #3a3a3a; border-color: var(--accent); }
+
+.nc-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(26, 156, 216, 0.12);
+}
+
+.nc-btn-delete {
+  margin-left: auto;
+  border-color: #884444;
+  color: #cc6666;
+}
+.nc-btn-delete:hover { background: rgba(204, 80, 80, 0.15); border-color: #cc6666; }
+
 /* ── CSS cubic-bezier 表示 ── */
 #css-value-wrap {
   text-align: center;

@@ -2,6 +2,19 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.3.0] - Sun Apr 19 09:26:02 JST 2026
+### Added
+- `js/curveEditor.js`: ノード `smooth` プロパティ — `true` でハンドルをリンク（スムーズ接続）、`false` でコーナー（独立）
+- `js/curveEditor.js`: Alt+クリックで中間ノードの smooth/corner 切替
+- `js/curveEditor.js`: スムーズノードは円、コーナーノードは四角で描画を区別
+- `js/curveEditor.js`: 公開 API `deleteSelected()` / `toggleSmooth(forceSmooth?)` / `selectedIndex` / `selectedNode`
+- `index.html`: `#node-controls` — スムーズ / コーナー / 削除 ボタンを追加
+- `css/style.css`: `.nc-btn`, `.nc-btn.active`, `.nc-btn-delete` スタイル追加
+- `js/main.js`: 中間ノード選択時に `#node-controls` を表示し、smooth 状態をボタンに反映
+### Changed
+- `js/curveEditor.js`: De Casteljau 挿入ノードのデフォルトを `smooth: true` に設定
+- `index.html`: ステータスバー初期テキストに Alt+クリック操作説明を追加
+
 ## [0.2.0] - Sun Apr 19 09:11:55 JST 2026
 ### Added
 - `js/curveEditor.js`: 多点ノード対応（ダブルクリックで曲線上にノード追加 / De Casteljau 分割 / Delete で削除）

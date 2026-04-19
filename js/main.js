@@ -2,12 +2,11 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.2.0
- * Date: Sun Apr 19 08:42:43 JST 2026
+ * Version: 0.3.0
+ * Date: Sun Apr 19 09:11:55 JST 2026
  */
 
-// ── プリセット定義 ────────────────────────────────��────────
-// 単一セグメント (2ノード) のプリセット
+// ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
     { name: 'Linear',      p1x: 0.00, p1y: 0.00, p2x: 1.00, p2y: 1.00 },
     { name: 'Ease',        p1x: 0.25, p1y: 0.10, p2x: 0.25, p2y: 1.00 },
@@ -29,50 +28,55 @@ const csInterface = (() => {
             },
         };
     }
-    // ブラウザ開発モック
     return {
         evalScript(script, cb) {
             console.log('[DEV] evalScript:', script.slice(0, 80));
-            setTimeout(() => cb(JSON.stringify({
-                status: 'ok', count: 2,
-            })), 50);
+            setTimeout(() => cb(JSON.stringify({ status: 'ok', count: 2 })), 50);
         },
     };
 })();
 
 // ── DOM 参照 ──────────────────────────────────────────────
-const elCanvas      = document.getElementById('curveCanvas');
-const elP1x         = document.getElementById('p1x');
-const elP1y         = document.getElementById('p1y');
-const elP2x         = document.getElementById('p2x');
-const elP2y         = document.getElementById('p2y');
-const elCoordArea   = document.getElementById('coord-area');
-const elNodeInfo    = document.getElementById('node-info');
-const elCssVal      = document.getElementById('cssValue');
-const elCssWrap     = document.getElementById('css-value-wrap');
-const elApply       = document.getElementById('btnApply');
-const elStatus      = document.getElementById('statusText');
-const elPresets     = document.getElementById('preset-buttons');
+const elCanvas       = document.getElementById('curveCanvas');
+const elP1x          = document.getElementById('p1x');
+const elP1y          = document.getElementById('p1y');
+const elP2x          = document.getElementById('p2x');
+const elP2y          = document.getElementById('p2y');
+const elCoordArea    = document.getElementById('coord-area');
+const elNodeInfo     = document.getElementById('node-info');
+const elNodeControls = document.getElementById('node-controls');
+const elBtnSmooth    = document.getElementById('btnSmooth');
+const elBtnCorner    = document.getElementById('btnCorner');
+const elBtnDelete    = document.getElementById('btnNodeDelete');
+const elCssVal       = document.getElementById('cssValue');
+const elCssWrap      = document.getElementById('css-value-wrap');
+const elApply        = document.getElementById('btnApply');
+const elStatus       = document.getElementById('statusText');
+const elPresets      = document.getElementById('preset-buttons');
 
-// ── 状態 ───────────────────────────────────────────────���─
-let currentNodes = null; // 最新のノード配列
+// ── 状態 ──────────────────────────────────────────────────
+let currentNodes = null;
 
-// ── カーブエディタ初期化 ────────────────────────────────���─
+// ── カーブエディタ初期化 ───────────────────────────────────
 const editor = new CurveEditor(elCanvas, (nodes) => {
     currentNodes = nodes;
     onNodesChanged(nodes);
 });
 
-// ── ノード変更ハンドラ ───────────────────────────────��────
+// ── ノード変更ハンドラ ─────────────────────────────────────
 function onNodesChanged(nodes) {
     currentNodes = nodes;
     const isSingle = nodes.length === 2;
+    const selIdx   = editor.selectedIndex;
+    const isIntermediateSelected =
+        selIdx !== null && selIdx > 0 && selIdx < nodes.length - 1;
+
+    // 単一セグメント: P1/P2 入力を表示
+    elCoordArea.style.display = isSingle ? '' : 'none';
+    elNodeInfo.style.display  = isSingle ? 'none' : '';
+    elCssWrap.style.display   = isSingle ? '' : 'none';
 
     if (isSingle) {
-        // 単一セグメント: P1/P2 入力を表示
-        elCoordArea.style.display = '';
-        elNodeInfo.style.display  = 'none';
-        elCssWrap.style.display   = '';
         const p1 = nodes[0].handleOut || {x:0.42, y:0};
         const p2 = nodes[nodes.length-1].handleIn || {x:0.58, y:1};
         elP1x.value = fmt(p1.x); elP1y.value = fmt(p1.y);
@@ -80,17 +84,22 @@ function onNodesChanged(nodes) {
         elCssVal.textContent =
             `cubic-bezier(${fmt(p1.x)}, ${fmt(p1.y)}, ${fmt(p2.x)}, ${fmt(p2.y)})`;
     } else {
-        // 多ノード: ノード数を表示
-        elCoordArea.style.display = 'none';
-        elNodeInfo.style.display  = '';
-        elCssWrap.style.display   = 'none';
         elNodeInfo.textContent = `ノード ${nodes.length} 点（中間 ${nodes.length - 2} 点）`;
+    }
+
+    // 中間ノードが選択されているときのみノードコントロールを表示
+    elNodeControls.style.display = isIntermediateSelected ? '' : 'none';
+    if (isIntermediateSelected) {
+        const node = nodes[selIdx];
+        const isSmooth = node.smooth !== false;
+        elBtnSmooth.classList.toggle('active', isSmooth);
+        elBtnCorner.classList.toggle('active', !isSmooth);
     }
 }
 
 function fmt(v) { return Math.round(v * 100) / 100; }
 
-// ── 数値入力 → エディタ同期（単一セグメント時のみ） ──────
+// ── 数値入力 → エディタ同期 ───────────────────────────────
 function syncEditorFromInputs() {
     const p1x = parseFloat(elP1x.value);
     const p1y = parseFloat(elP1y.value);
@@ -103,6 +112,14 @@ function syncEditorFromInputs() {
 [elP1x, elP1y, elP2x, elP2y].forEach(el => {
     el.addEventListener('input',  syncEditorFromInputs);
     el.addEventListener('change', syncEditorFromInputs);
+});
+
+// ── ノードコントロールボタン ───────────────────────────────
+elBtnSmooth.addEventListener('click', () => editor.toggleSmooth(true));
+elBtnCorner.addEventListener('click', () => editor.toggleSmooth(false));
+elBtnDelete.addEventListener('click', () => {
+    editor.deleteSelected();
+    setStatus('ノードを削除しました', 'success');
 });
 
 // ── プリセットボタン生成 ──────────────────────────────────
@@ -152,7 +169,9 @@ elApply.addEventListener('click', () => {
 function setStatus(msg, type = '') {
     elStatus.textContent = msg;
     elStatus.className   = type;
-    if (type === 'success') setTimeout(() => setStatus('準備完了'), 3000);
+    if (type === 'success') setTimeout(() => setStatus(
+        'ダブルクリック: ノード追加 / Alt+クリック: スムーズ切替'
+    ), 3000);
 }
 
 // ── 初期化 ────────────────────────────────────────────────

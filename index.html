@@ -33,6 +33,16 @@
     <!-- 多ノード時のノード数表示 -->
     <div id="node-info" class="node-info" style="display:none"></div>
 
+    <!-- ノードコントロール（中間ノード選択時のみ表示） -->
+    <div id="node-controls" style="display:none">
+      <div class="nc-row">
+        <span class="nc-label">ノード</span>
+        <button id="btnSmooth" class="nc-btn" title="ハンドルをリンク（スムーズ接続）">◯ スムーズ</button>
+        <button id="btnCorner" class="nc-btn" title="ハンドルを独立（コーナー）">◇ コーナー</button>
+        <button id="btnNodeDelete" class="nc-btn nc-btn-delete" title="このノードを削除">削除</button>
+      </div>
+    </div>
+
     <!-- CSS cubic-bezier 表示（単一セグメント時のみ） -->
     <div id="css-value-wrap">
       <span id="cssValue" class="css-value"></span>
@@ -63,7 +73,7 @@
 
     <!-- ステータスバー -->
     <div id="status-bar">
-      <span id="statusText">準備完了 — ダブルクリックでノード追加 / Delete で削除</span>
+      <span id="statusText">準備完了 — ダブルクリックでノード追加 / Alt+クリックでスムーズ切替</span>
     </div>
 
   </div>
