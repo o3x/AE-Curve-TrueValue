@@ -4,155 +4,152 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-After Effects の「速度グラフ中心・次元非分離」設計上の問題を解決し、**Figma スタイルの 0-1 正規化 cubic-bezier カーブ編集** を AE 内パネルで実現する **CEP 拡張パネル**。
+After Effects の「速度グラフ中心・次元非分離」という設計上の問題を解決し、**Figma スタイルの 0-1 正規化 cubic-bezier カーブ編集** を AE 内パネルで実現する **CEP 拡張パネル**。
 
-- スクリプト名: **Curve-TrueValue**
-- GitHub: https://github.com/o3x/AE-Curve-TrueValue
+- 名称: **Curve-TrueValue** / GitHub: https://github.com/o3x/AE-Curve-TrueValue
+- 設計思想の詳細: `.ai/After Effects カーブ調整の理想を求めて.md`
 
-### 解決する 3 つの問題
-
-| 問題 | AE の現状 | このツールの解法 |
-|---|---|---|
-| **速度グラフの認知不整合** | デフォルトが speed graph で値の推移が見えない | 0-1 正規化 cubic-bezier カーブで直感的に表示・編集 |
-| **ブーメラン効果** | 位置の空間補完がオートベジェで意図せず膨らむ | 空間補完を Linear に自動設定するオプション |
-| **次元の不分離** | 位置 X/Y が一体でハンドル操作不可 | 適用時に `dimensionsSeparated = true` で自動分割 |
+解決する問題（設計文書より）:
+- **速度グラフの認知不整合** → 0-1 正規化 cubic-bezier カーブで直感的に表示
+- **ブーメラン効果** → 空間補完を Linear に自動設定するオプション
+- **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割
 
 ## Tech Stack
 
-| 対象 | 技術 | 備考 |
+| 対象 | 技術 | 制約 |
 |---|---|---|
 | パネル UI | HTML5 / CSS3 / ES2020+ | CEP 内蔵 Chromium で動作 |
-| AE API アクセス | ExtendScript (.jsx) / **ES3 必須** | `jsx/hostscript.jsx` |
-| AE ↔ パネル通信 | `csInterface.evalScript()` | JSON 文字列でデータ交換 |
+| AE API アクセス | ExtendScript (.jsx) | **ES3 必須**（`var` のみ） |
+| AE ↔ パネル通信 | `csInterface.evalScript()` | JSON 文字列でやり取り |
 
-## ファイル構成
-
-```
-AE-Curve-TrueValue/
-├── CSXS/
-│   └── manifest.xml       ← CEP 拡張定義（ID・ホスト・バージョン）
-├── css/
-│   └── style.css          ← ダークテーマ（AE UI に合わせた配色）
-├── js/
-│   ├── cubicBezier.js     ← cubic-bezier 数学（評価・AE ease 変換）
-│   ├── curveEditor.js     ← canvas 描画・マウスインタラクション
-│   └── main.js            ← CSInterface ブリッジ・UI イベント連結
-├── jsx/
-│   └── hostscript.jsx     ← AE API: キーフレーム読み書き（ES3 必須）
-├── index.html             ← パネル HTML エントリーポイント
-├── CLAUDE.md
-├── CHANGELOG.md
-└── README.md
-```
+ビルドシステムなし。ファイルを直接 CEP がロードする。
 
 ## 開発環境セットアップ（初回のみ）
 
-### 1. CEP デバッグモードを有効化
-
+### CEP デバッグモードを有効化
 ```powershell
-# Windows レジストリに PlayerDebugMode を設定（管理者権限不要）
 reg add "HKCU\Software\Adobe\CSXS.11" /v PlayerDebugMode /t REG_STRING /d 1 /f
-# CEP 10 も念のため
 reg add "HKCU\Software\Adobe\CSXS.10" /v PlayerDebugMode /t REG_STRING /d 1 /f
 ```
 
-### 2. AE 拡張フォルダにシンボリックリンクを作成
-
+### AE 拡張フォルダにシンボリックリンクを作成（管理者 PowerShell）
 ```powershell
-# AE の CEP 拡張フォルダ（存在しない場合は手動作成）
-$extDir = "$env:APPDATA\Adobe\CEP\extensions"
-New-Item -ItemType Directory -Path $extDir -Force
-
-# シンボリックリンク（管理者権限が必要）
+New-Item -ItemType Directory -Path "$env:APPDATA\Adobe\CEP\extensions" -Force
 New-Item -ItemType SymbolicLink `
-    -Path "$extDir\com.o3x.curve-truevalue" `
+    -Path "$env:APPDATA\Adobe\CEP\extensions\com.o3x.curve-truevalue" `
     -Target "d:\Users\ooyama\Documents\VScode\AE-Curve-TrueValue"
 ```
 
-### 3. After Effects を再起動 → ウィンドウ > 拡張機能 > Curve-TrueValue
+**AE 再起動 → ウィンドウ > 拡張機能 > Curve-TrueValue**
 
-### デバッグ（Chrome DevTools）
+### UI のみ確認（AE 不要）
+`index.html` をブラウザで直接開く。`csInterface` は自動的に開発モックに切り替わり、`console.log` でデバッグ可能。AE 上での DevTools は パネル右クリック → Inspect Element。
 
-パネル上で右クリック → `Inspect Element` が使用可能（デバッグモード有効時のみ）
+## アーキテクチャ
 
-## アーキテクチャ詳細
+### コアデータ構造: ノード配列
 
-### 0-1 正規化 cubic-bezier の座標系
+```javascript
+// ノード = { anchor: {x,y}, handleIn: {x,y}|null, handleOut: {x,y}|null }
+//   開始ノード: handleIn=null、終了ノード: handleOut=null、中間ノード: 両方あり
+// 例: 単一セグメント（デフォルト）
+nodes = [
+    { anchor: {x:0, y:0}, handleIn: null,            handleOut: {x:0.42, y:0.00} },
+    { anchor: {x:1, y:1}, handleIn: {x:0.58, y:1.00}, handleOut: null           },
+]
+```
 
-- X 軸 = 時間進行度 [0, 1]（キーフレーム間の時間を正規化）
-- Y 軸 = 値進行度 [0, 1]（開始値→終了値を 0→1 に正規化）
-- **オーバーシュート許可**: Y が [0, 1] を超えることを視覚的に許容
-- 形式: `cubic-bezier(P1x, P1y, P2x, P2y)` — Figma / CSS と同一
+このノード配列がパネル全体を流れる唯一の状態。`CurveEditor.onChange(nodes)` → `main.js` → `applyEase(argsJson)` → `hostscript.jsx` の順に伝播する。
+
+### CurveEditor クラス（js/curveEditor.js）
+
+| API | 用途 |
+|---|---|
+| `constructor(canvas, onChange)` | `onChange(nodes)` はノード変更のたびに呼ばれる |
+| `setValues(p1x, p1y, p2x, p2y)` | プリセット適用など、単一セグメントを直接セット |
+| `setNodes(nodes)` | ノード配列を一括セット |
+| `get p1` / `get p2` | 単一セグメント時の後方互換ゲッター |
+
+内部状態: `_drag = { type:'anchor'|'handleIn'|'handleOut', idx }` / `_selected = number|null`
+
+ダブルクリックでノード追加する際は **De Casteljau 分割** でカーブ形状を保ったまま挿入する（`_splitAt(segIdx, t)` メソッド）。
+
+### 座標系
+
+- canvas Y 軸は上が 0（スクリーン座標）→ ベジェ変換は `by = 1 - cy/inner`
+- パディング `_pad = size * 0.085` でキャンバス周囲に余白
+- Y 軸は [-0.5, 1.5] を許容（オーバーシュート表現）
+- ハンドル X 軸: `handleOut.x >= anchor.x`、`handleIn.x <= anchor.x` で制限
 
 ### AE ↔ cubic-bezier 変換（近似）
 
 ```
 outInfluence = P1x * 100
-outSpeed     = (P1y / P1x) * (valueDelta / timeDelta)   // P1x=0 のとき speed=0
+outSpeed     = (P1y / P1x) * (valueDelta / timeDelta)   // P1x=0 のとき 0
 
 inInfluence  = (1 - P2x) * 100
 inSpeed      = ((1 - P2y) / (1 - P2x)) * (valueDelta / timeDelta)
 ```
 
-精度問題が発生した箇所には `@problem` / `@solution` コメントで記録する。
+精度問題には `@problem` / `@solution` コメントで記録する。
 
-### csInterface.evalScript の使い方
+### 多ノード適用フロー（hostscript.jsx）
+
+nodes が 3 点以上の場合、`_applyMultiNodeEase` が:
+1. 中間ノードをループ（後ろから）して `prop.addKey()` で AE に中間 KF を生成
+2. 挿入後のインデックスを再取得して `_applySegmentEase` を各セグメントに適用
+
+### csInterface パターン
 
 ```javascript
-// JS → JSX 呼び出し（引数は文字列に埋め込む）
-csInterface.evalScript(
-    'applyEase(' + JSON.stringify(args) + ')',
-    function(result) {
-        const data = JSON.parse(result);
-        // ...
-    }
-);
+// JS → JSX: 引数を JSON 文字列で二重エンコード
+csInterface.evalScript(`applyEase(${JSON.stringify(argsJson)})`, (result) => {
+    const res = JSON.parse(result); // { status, count|message }
+});
 
-// JSX 側は必ず JSON.stringify で返す
-// function applyEase(argsJson) {
-//     var args = JSON.parse(argsJson);
-//     ...
-//     return JSON.stringify({ status: "ok" });
-// }
+// JSX → JS: 必ず JSON.stringify で返す
+function applyEase(argsJson) {
+    var args = JSON.parse(argsJson);
+    // ...
+    return JSON.stringify({ status: 'ok', count: n });
+}
 ```
 
-### AE キーフレーム API（hostscript.jsx）
+### AE キーフレーム API チートシート
 
 ```javascript
-// テンポラル補完の読み書き
-var outEase = new KeyframeEase(speed, influence);
-prop.setTemporalEaseAtKey(keyIdx, [inEase], [outEase]);
+// テンポラル補完
+var ease = new KeyframeEase(speed, influence);
+prop.setTemporalEaseAtKey(k, [inEase], [outEase]);
+var eases = prop.getTemporalEaseAtKey(k); // [[inEase], [outEase]]
 
-// 空間補完のリニア化（ブーメラン効果の解消）
-prop.setSpatialTangentsAtKey(keyIdx, [0, 0], [0, 0]);
+// 空間補完のリニア化
+// @problem Position 以外で呼ぶとエラー → @solution try/catch で握りつぶす
+prop.setSpatialTangentsAtKey(k, [0,0,0], [0,0,0]);
 
-// 次元分割（Position プロパティ）
+// 次元分割
+// @problem Position 系以外では matchName チェックが必要
 prop.dimensionsSeparated = true;
-
-// 選択済みキーフレームの検出
-for (var k = 1; k <= prop.numKeys; k++) {
-    if (prop.keySelected(k)) { /* 処理 */ }
-}
 ```
 
 ## コーディング規則
 
-### JS（index.html / js/*.js）
-- モダン JS（ES2020+）使用可
-- `const` / `let` / アロー関数 / テンプレートリテラル 全て使用可
+### JS（js/*.js）
+- ES2020+ 使用可（`const`/`let`/アロー関数/テンプレートリテラル）
 - コメントは日本語
 
 ### JSX（jsx/*.jsx）
 - **ES3 必須**: `var` のみ、`let`/`const`/アロー関数禁止
-- 必ず `app.beginUndoGroup` / `app.endUndoGroup` で囲む
-- `try...catch (e)` で `e.line`、`e.message` を含むエラーを JSON で返す
-- アクセス前に必ず `null` チェックと型チェック
+- `app.beginUndoGroup` / `app.endUndoGroup` で囲む（`finally` で確実に閉じる）
+- エラーは `JSON.stringify({ status:'error', message: e.message + ' (line ' + e.line + ')' })` で返す
 
 ### 共通
 - コメント・コミットメッセージは日本語
-- バグ修正・仕様回避には `@problem` / `@solution` を記録
+- AE 特有の仕様回避には `@problem` / `@solution` を記録
 
 ## バージョン管理
 
-- CHANGELOG.md 日時形式: `Sun Apr 19 08:42:43 JST 2026`
-- ソースコード先頭のバージョン・日付も同形式で更新
+日時形式（ソース先頭・CHANGELOG.md 共通）:
+```powershell
+powershell -Command "[System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture; Get-Date -Format 'ddd MMM dd HH:mm:ss JST yyyy'"
+```
