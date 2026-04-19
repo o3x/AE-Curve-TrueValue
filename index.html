@@ -30,7 +30,10 @@
       </div>
     </div>
 
-    <!-- CSS cubic-bezier 表示 -->
+    <!-- 多ノード時のノード数表示 -->
+    <div id="node-info" class="node-info" style="display:none"></div>
+
+    <!-- CSS cubic-bezier 表示（単一セグメント時のみ） -->
     <div id="css-value-wrap">
       <span id="cssValue" class="css-value"></span>
     </div>
@@ -60,7 +63,7 @@
 
     <!-- ステータスバー -->
     <div id="status-bar">
-      <span id="statusText">準備完了</span>
+      <span id="statusText">準備完了 — ダブルクリックでノード追加 / Delete で削除</span>
     </div>
 
   </div>

@@ -38,19 +38,20 @@ body {
   min-width: 240px;
 }
 
-/* ── カーブキャンバス ── */
+/* ── カーブキャンバス（レスポンシブ） ── */
 #canvas-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 4px 0;
+  width: 100%;
+  /* canvas の高さは JS (ResizeObserver) が canvas.width = canvas.height で設定 */
 }
 
 #curveCanvas {
+  display: block;
+  width: 100%;          /* CSS 表示幅を親に追従 */
+  height: auto;         /* 縦横比は JS 側で固定（width == height） */
   background: var(--bg-canvas);
   border: 1px solid var(--border);
   border-radius: 3px;
   cursor: crosshair;
-  display: block;
 }
 
 /* ── 数値入力 ── */
@@ -98,6 +99,14 @@ body {
 .coord-row input[type="number"]:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* ── 多ノード時のノード情報 ── */
+.node-info {
+  text-align: center;
+  font-size: 10px;
+  color: var(--accent);
+  padding: 2px 0;
 }
 
 /* ── CSS cubic-bezier 表示 ── */
