@@ -2,7 +2,7 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.4.5
+ * Version: 0.4.6
  * Date: Sun Apr 19 09:31:46 JST 2026
  *
  * 関数一覧:
@@ -142,20 +142,7 @@ function applyEase(argsJson) {
                 var prop = props[i];
                 if (prop.numKeys === 0) continue;
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
-                var hasEaseFn = typeof prop.getTemporalEaseAtKey === 'function';
-                if (!hasEaseFn) { appliedCount = -1; break; } // 診断: getTemporalEaseAtKey なし
-
-                // 次元分割オプション
-                // dimensionsSeparated は Position 系のみ有効 → matchName で判定
-                if (splitDimensions) {
-                    try {
-                        var mn = prop.matchName;
-                        if (mn === 'ADBE Position' || mn === 'ADBE Position_0') {
-                            prop.dimensionsSeparated = true;
-                            appliedCount = -2; break; // 診断: splitDimensions でスキップ
-                        }
-                    } catch (dimErr) { /* 非対応は無視 */ }
-                }
+                if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
 
                 // 選択済み KF ペア (k, k+1) を列挙
                 for (var k = 1; k <= prop.numKeys; k++) {
@@ -189,24 +176,23 @@ function applyEase(argsJson) {
                             linearSpatial);
                     }
                 }
+
+                // イーズ適用後に次元分割（先に分割するとプロパティ構造が変わるため）
+                if (splitDimensions) {
+                    try {
+                        var mn = prop.matchName;
+                        if (mn === 'ADBE Position' || mn === 'ADBE Position_0') {
+                            prop.dimensionsSeparated = true;
+                        }
+                    } catch (dimErr) { /* 非対応は無視 */ }
+                }
             }
         } finally {
             app.endUndoGroup();
         }
 
-        if (appliedCount <= 0) {
-            var reason = appliedCount === -1 ? 'getTemporalEaseAtKey なし' :
-                         appliedCount === -2 ? 'splitDimensions でスキップ' : 'KF 未選択';
-            var dbg = reason + ' props=' + props.length;
-            for (var di = 0; di < props.length; di++) {
-                var dp = props[di];
-                var selKeys = [];
-                for (var dk = 1; dk <= dp.numKeys; dk++) {
-                    if (dp.keySelected(dk)) selKeys.push(dk);
-                }
-                dbg += ' [' + dp.name + ':keys=' + dp.numKeys + ',sel=' + selKeys.join(',') + ']';
-            }
-            return JSON.stringify({ status: 'error', message: dbg });
+        if (appliedCount === 0) {
+            return JSON.stringify({ status: 'error', message: 'キーフレームが選択されていません（隣接する2点を選択してください）' });
         }
         return JSON.stringify({ status: 'ok', count: appliedCount });
     } catch (e) {
