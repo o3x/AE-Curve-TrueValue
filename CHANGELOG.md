@@ -2,6 +2,15 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.4.1] - Sun Apr 19 09:44:49 JST 2026
+### Fixed
+- `jsx/hostscript.jsx`: 多点ノード適用時のインデックスズレを修正
+  - 後ろから KF を挿入するたびに `insertedIndices` の既存エントリを +1 補正するよう変更
+  - 修正前: 2点以上の中間ノードがある場合にセグメントが重複・誤指定されていた
+- `jsx/hostscript.jsx`: セグメント handle 座標をグローバル 0-1 からセグメント相対座標に変換して AE ease に渡すよう修正
+  - `localP1x = (handleOut.x - ta) / (tb - ta)` に正規化
+  - 修正前: 全セグメントで AE の influence/speed が誤った値になっていた
+
 ## [0.4.0] - Sun Apr 19 09:31:46 JST 2026
 ### Added
 - `js/curveEditor.js`: `setSelectedNodeCoords({ anchorX, anchorY, outY, inY })` — 選択ノードの座標を数値で精密設定（数値入力欄からの入力用）

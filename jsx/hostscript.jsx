@@ -2,8 +2,8 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.2.0
- * Date: Sun Apr 19 08:42:43 JST 2026
+ * Version: 0.4.0
+ * Date: Sun Apr 19 09:31:46 JST 2026
  *
  * 関数一覧:
  *   getSelectedKfData() → JSON
@@ -218,12 +218,17 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
         if (linearSpatial) {
             try { prop.setSpatialTangentsAtKey(newIdx, [0,0,0], [0,0,0]); } catch(e2) {}
         }
+
+        // @problem 後ろから挿入するたびに既存インデックスが +1 ずれる
+        // @solution 今回の挿入位置以降のインデックスをすべてインクリメント
+        for (var j = 0; j < insertedIndices.length; j++) {
+            if (insertedIndices[j] >= newIdx) insertedIndices[j]++;
+        }
         insertedIndices.unshift(newIdx);
         count++;
     }
 
     // 全セグメントにイーズを適用
-    // 挿入後のインデックス再取得
     var allIndices = [idxA];
     for (var m = 0; m < insertedIndices.length; m++) {
         allIndices.push(insertedIndices[m]);
@@ -238,13 +243,22 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
         if (!nodeA.handleOut || !nodeB.handleIn) continue;
 
         var segTimeDelta  = prop.keyTime(segB) - prop.keyTime(segA);
-        var segValueDelta;
         var svA = prop.keyValue(segA), svB = prop.keyValue(segB);
-        segValueDelta = (svA instanceof Array) ? svB[0] - svA[0] : svB - svA;
+        var segValueDelta = (svA instanceof Array) ? svB[0] - svA[0] : svB - svA;
+
+        // @problem handle 座標はグローバル 0-1 空間 → セグメント相対に変換が必要
+        // @solution (handleX - ta) / (tb - ta) でセグメント内の相対位置を計算
+        var ta = nodeA.anchor.x, tb = nodeB.anchor.x;
+        var va = nodeA.anchor.y, vb = nodeB.anchor.y;
+        var dtSeg = tb - ta;
+        var dvSeg = vb - va;
+        var lP1x = dtSeg > 1e-6 ? (nodeA.handleOut.x - ta) / dtSeg : 0;
+        var lP1y = Math.abs(dvSeg) > 1e-6 ? (nodeA.handleOut.y - va) / dvSeg : 0;
+        var lP2x = dtSeg > 1e-6 ? (nodeB.handleIn.x  - ta) / dtSeg : 1;
+        var lP2y = Math.abs(dvSeg) > 1e-6 ? (nodeB.handleIn.y  - va) / dvSeg : 1;
 
         _applySegmentEase(prop, segA, segB,
-            nodeA.handleOut.x, nodeA.handleOut.y,
-            nodeB.handleIn.x,  nodeB.handleIn.y,
+            lP1x, lP1y, lP2x, lP2y,
             segValueDelta, segTimeDelta, linearSpatial);
     }
 
