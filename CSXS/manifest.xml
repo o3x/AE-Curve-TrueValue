@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ExtensionManifest
     ExtensionBundleId="com.o3x.curve-truevalue"
-    ExtensionBundleVersion="0.1.0"
+    ExtensionBundleVersion="0.4.2"
     ExtensionBundleName="Curve-TrueValue"
-    Version="11.0">
+    Version="9.0">
 
   <ExtensionList>
-    <Extension Id="com.o3x.curve-truevalue.panel" Version="0.1.0"/>
+    <Extension Id="com.o3x.curve-truevalue.panel" Version="0.4.2"/>
   </ExtensionList>
 
   <ExecutionEnvironment>
@@ -18,7 +18,7 @@
       <Locale Code="All"/>
     </LocaleList>
     <RequiredRuntimeList>
-      <RequiredRuntime Name="CSXS" Version="11.0"/>
+      <RequiredRuntime Name="CSXS" Version="9.0"/>
     </RequiredRuntimeList>
   </ExecutionEnvironment>
 
@@ -40,10 +40,10 @@
           <Type>Panel</Type>
           <Menu>Curve-TrueValue</Menu>
           <Geometry>
-            <PreferredSize>
+            <Size>
               <Height>420</Height>
               <Width>280</Width>
-            </PreferredSize>
+            </Size>
             <MinSize>
               <Height>360</Height>
               <Width>240</Width>

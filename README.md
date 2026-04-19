@@ -45,7 +45,7 @@ defaults write com.adobe.CSXS.10 PlayerDebugMode 1
 
 | OS | パス |
 |---|---|
-| Windows | `%APPDATA%\Adobe\CEP\extensions\com.o3x.curve-truevalue` |
+| Windows | `C:\Users\ユーザー名\AppData\Roaming\Adobe\CEP\extensions\com.o3x.curve-truevalue` |
 | macOS | `~/Library/Application Support/Adobe/CEP/extensions/com.o3x.curve-truevalue` |
 
 **Windows（シンボリックリンクで配置する場合）:**

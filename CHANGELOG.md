@@ -2,6 +2,13 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.4.2] - Sun Apr 19 14:44:00 JST 2026
+### Changed
+- `CSXS/manifest.xml`: CEPの必須ランタイムを11.0から9.0に変更し、幅広いAEバージョンで認識されるように修正。
+- `CSXS/manifest.xml`: ExtensionManifest Version (マニフェスト自体のバージョン) が 11.0 となっていたためロードエラーになる問題を修正し、9.0 に変更。
+- `CSXS/manifest.xml`: パネルサイズ定義が `<PreferredSize>` となっており、ロード時に不完全な拡張機能として弾かれていた問題を修正（正しくは `<Size>`）。
+- `CSXS/manifest.xml`: ExtensionBundleVersion を 0.4.2 に更新。
+
 ## [0.4.1] - Sun Apr 19 09:44:49 JST 2026
 ### Fixed
 - `jsx/hostscript.jsx`: 多点ノード適用時のインデックスズレを修正
