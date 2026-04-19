@@ -136,9 +136,15 @@ var eases = prop.getTemporalEaseAtKey(k); // [[inEase], [outEase]]
 // 空間補完のリニア化（Position 以外ではエラー → try/catch で握りつぶす）
 try { prop.setSpatialTangentsAtKey(k, [0,0,0], [0,0,0]); } catch(e) {}
 
-// 次元分割（matchName チェックが必要）
+// 次元分割はイーズ適用の【後】に行う（先に分割するとプロパティ構造が変わる）
 if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 ```
+
+### ExtendScript 既知の落とし穴
+
+- **`typeof` でプロパティメソッドを確認できない**: AE オブジェクトのメソッドは `typeof prop.getTemporalEaseAtKey` が `'undefined'` を返すことがあるが、実際には呼び出せない（未定義エラーになる）。メソッドの存在確認には `typeof` ではなく `try-catch` を使う。
+- **`JSON` が存在しない**: `typeof JSON === 'undefined'`。`hostscript.jsx` 先頭の JSON ポリフィルで対処済み。新規 JSX ファイルを作る場合も同様のポリフィルが必要。
+- **`comp.selectedProperties` の挙動**: キーフレームを選択すると対応プロパティが返るが、`PropertyGroup` も混入する可能性がある。`prop.numKeys === 0` でスキップすれば大半は除外できる。`getTemporalEaseAtKey` を呼ぶ際も try-catch が必要。
 
 ## コーディング規則
 
