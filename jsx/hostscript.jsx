@@ -194,7 +194,16 @@ function applyEase(argsJson) {
         }
 
         if (appliedCount === 0) {
-            return JSON.stringify({ status: 'error', message: 'キーフレームが選択されていません（隣接する2点を選択してください）' });
+            var dbg = 'props=' + props.length;
+            for (var di = 0; di < props.length; di++) {
+                var dp = props[di];
+                var selKeys = [];
+                for (var dk = 1; dk <= dp.numKeys; dk++) {
+                    if (dp.keySelected(dk)) selKeys.push(dk);
+                }
+                dbg += ' [' + dp.name + ':keys=' + dp.numKeys + ',sel=' + selKeys.join(',') + ']';
+            }
+            return JSON.stringify({ status: 'error', message: dbg });
         }
         return JSON.stringify({ status: 'ok', count: appliedCount });
     } catch (e) {
