@@ -2,7 +2,7 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.4.6
+ * Version: 0.4.7
  * Date: Sun Apr 19 09:31:46 JST 2026
  *
  * 関数一覧:
@@ -138,25 +138,16 @@ function applyEase(argsJson) {
 
         try {
             var props = comp.selectedProperties;
-            var dbgStep = 'start:props=' + props.length;
             for (var i = 0; i < props.length; i++) {
                 var prop = props[i];
-                dbgStep = 'A';
                 if (prop.numKeys === 0) continue;
-                dbgStep = 'B';
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
-                dbgStep = 'C:hasEase=' + (typeof prop.getTemporalEaseAtKey);
-                if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
-                dbgStep = 'D';
 
                 // 選択済み KF ペア (k, k+1) を列挙
                 for (var k = 1; k <= prop.numKeys; k++) {
-                    dbgStep = 'E:k=' + k + ',sel=' + prop.keySelected(k) + ',last=' + (k >= prop.numKeys);
                     if (!prop.keySelected(k) || k >= prop.numKeys) continue;
-                    dbgStep = 'F:k=' + k + ',sel+1=' + prop.keySelected(k + 1);
                     if (!prop.keySelected(k + 1)) continue;
 
-                    dbgStep = 'G:k=' + k;
                     var timeA    = prop.keyTime(k);
                     var timeB    = prop.keyTime(k + 1);
                     var vA       = prop.keyValue(k);
@@ -164,28 +155,25 @@ function applyEase(argsJson) {
                     var timeDeltaFull  = timeB - timeA;
                     var valueDeltaFull = (vA instanceof Array) ? vB[0] - vA[0] : vB - vA;
 
-                    if (nodes.length <= 2) {
-                        // ── 単一セグメント ──
-                        var p1x = nodes[0].handleOut.x, p1y = nodes[0].handleOut.y;
-                        var p2x = nodes[nodes.length-1].handleIn.x,
-                            p2y = nodes[nodes.length-1].handleIn.y;
-                        dbgStep = 'H:single';
-                        appliedCount += _applySegmentEase(
-                            prop, k, k + 1,
-                            p1x, p1y, p2x, p2y,
-                            valueDeltaFull, timeDeltaFull,
-                            linearSpatial);
-                    } else {
-                        // ── 多点セグメント: 中間 KF を生成 ──
-                        dbgStep = 'H:multi';
-                        appliedCount += _applyMultiNodeEase(
-                            prop, k, k + 1,
-                            nodes,
-                            timeA, vA, vB,
-                            timeDeltaFull, valueDeltaFull,
-                            linearSpatial);
-                    }
-                    dbgStep = 'I:count=' + appliedCount;
+                    try {
+                        if (nodes.length <= 2) {
+                            var p1x = nodes[0].handleOut.x, p1y = nodes[0].handleOut.y;
+                            var p2x = nodes[nodes.length-1].handleIn.x,
+                                p2y = nodes[nodes.length-1].handleIn.y;
+                            appliedCount += _applySegmentEase(
+                                prop, k, k + 1,
+                                p1x, p1y, p2x, p2y,
+                                valueDeltaFull, timeDeltaFull,
+                                linearSpatial);
+                        } else {
+                            appliedCount += _applyMultiNodeEase(
+                                prop, k, k + 1,
+                                nodes,
+                                timeA, vA, vB,
+                                timeDeltaFull, valueDeltaFull,
+                                linearSpatial);
+                        }
+                    } catch (segErr) { /* テンポラル補完非対応プロパティは無視 */ }
                 }
 
                 // イーズ適用後に次元分割（先に分割するとプロパティ構造が変わるため）
@@ -203,7 +191,7 @@ function applyEase(argsJson) {
         }
 
         if (appliedCount === 0) {
-            return JSON.stringify({ status: 'error', message: 'dbg:' + dbgStep });
+            return JSON.stringify({ status: 'error', message: 'キーフレームが選択されていません（隣接する2点を選択してください）' });
         }
         return JSON.stringify({ status: 'ok', count: appliedCount });
     } catch (e) {

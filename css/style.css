@@ -318,6 +318,8 @@ body {
 #statusText {
   font-size: 10px;
   color: var(--text-muted);
+  user-select: text;
+  cursor: text;
 }
 
 #statusText.success { color: #5cb85c; }
