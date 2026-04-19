@@ -2,8 +2,8 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.4.7
- * Date: Sun Apr 19 09:31:46 JST 2026
+ * Version: 0.5.0
+ * Date: Sun Apr 19 20:00:00 JST 2026
  *
  * 関数一覧:
  *   getSelectedKfData() → JSON

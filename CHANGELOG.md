@@ -2,6 +2,15 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.5.0] - Sun Apr 19 20:00:00 JST 2026
+### Fixed
+- `jsx/hostscript.jsx`: JSON ポリフィルを追加（ExtendScript には `JSON` オブジェクトが存在しないため `JSON.stringify` が動かない問題を修正）
+- `jsx/hostscript.jsx`: `getTemporalEaseAtKey` / `setTemporalEaseAtKey` を try-catch で保護。`typeof` によるメソッド存在確認が ExtendScript では機能しないため
+- `jsx/hostscript.jsx`: `splitDimensions` 有効時に Position のイーズが適用されないバグを修正（`dimensionsSeparated = true` をイーズ適用後に移動）
+- `css/style.css`: ステータスバーのテキストをマウスで選択・コピー可能に（`user-select: text`）
+### Changed
+- `jsx/hostscript.jsx`: テンポラル補完に非対応なプロパティは try-catch でスキップ（エラー時はメッセージを表示）
+
 ## [0.4.2] - Sun Apr 19 14:44:00 JST 2026
 ### Changed
 - `CSXS/manifest.xml`: CEPの必須ランタイムを11.0から9.0に変更し、幅広いAEバージョンで認識されるように修正。
