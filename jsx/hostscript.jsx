@@ -138,17 +138,25 @@ function applyEase(argsJson) {
 
         try {
             var props = comp.selectedProperties;
+            var dbgStep = 'start:props=' + props.length;
             for (var i = 0; i < props.length; i++) {
                 var prop = props[i];
+                dbgStep = 'A';
                 if (prop.numKeys === 0) continue;
+                dbgStep = 'B';
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
+                dbgStep = 'C:hasEase=' + (typeof prop.getTemporalEaseAtKey);
                 if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
+                dbgStep = 'D';
 
                 // 選択済み KF ペア (k, k+1) を列挙
                 for (var k = 1; k <= prop.numKeys; k++) {
+                    dbgStep = 'E:k=' + k + ',sel=' + prop.keySelected(k) + ',last=' + (k >= prop.numKeys);
                     if (!prop.keySelected(k) || k >= prop.numKeys) continue;
-                    if (!prop.keySelected(k + 1)) continue; // 両端が選択されている場合のみ
+                    dbgStep = 'F:k=' + k + ',sel+1=' + prop.keySelected(k + 1);
+                    if (!prop.keySelected(k + 1)) continue;
 
+                    dbgStep = 'G:k=' + k;
                     var timeA    = prop.keyTime(k);
                     var timeB    = prop.keyTime(k + 1);
                     var vA       = prop.keyValue(k);
@@ -161,6 +169,7 @@ function applyEase(argsJson) {
                         var p1x = nodes[0].handleOut.x, p1y = nodes[0].handleOut.y;
                         var p2x = nodes[nodes.length-1].handleIn.x,
                             p2y = nodes[nodes.length-1].handleIn.y;
+                        dbgStep = 'H:single';
                         appliedCount += _applySegmentEase(
                             prop, k, k + 1,
                             p1x, p1y, p2x, p2y,
@@ -168,6 +177,7 @@ function applyEase(argsJson) {
                             linearSpatial);
                     } else {
                         // ── 多点セグメント: 中間 KF を生成 ──
+                        dbgStep = 'H:multi';
                         appliedCount += _applyMultiNodeEase(
                             prop, k, k + 1,
                             nodes,
@@ -175,6 +185,7 @@ function applyEase(argsJson) {
                             timeDeltaFull, valueDeltaFull,
                             linearSpatial);
                     }
+                    dbgStep = 'I:count=' + appliedCount;
                 }
 
                 // イーズ適用後に次元分割（先に分割するとプロパティ構造が変わるため）
@@ -192,7 +203,7 @@ function applyEase(argsJson) {
         }
 
         if (appliedCount === 0) {
-            return JSON.stringify({ status: 'error', message: 'キーフレームが選択されていません（隣接する2点を選択してください）' });
+            return JSON.stringify({ status: 'error', message: 'dbg:' + dbgStep });
         }
         return JSON.stringify({ status: 'ok', count: appliedCount });
     } catch (e) {
