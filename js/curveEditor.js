@@ -13,8 +13,8 @@
  *   Alt+クリック      中間ノードの smooth/corner 切替
  *   Delete/Backspace  選択中の中間ノードを削除
  *
- * Version: 0.3.0
- * Date: Sun Apr 19 09:11:55 JST 2026
+ * Version: 0.4.0
+ * Date: Sun Apr 19 09:31:46 JST 2026
  */
 
 class CurveEditor {
@@ -323,13 +323,16 @@ class CurveEditor {
         const { cx, cy } = this._getPos(e);
         const bz = this.toBezier(cx, cy);
         const { type, idx } = this._drag;
-        const node    = this.nodes[idx];
-        const isFirst = idx === 0;
-        const isLast  = idx === this.nodes.length - 1;
+        const node        = this.nodes[idx];
+        const isFirst     = idx === 0;
+        const isLast      = idx === this.nodes.length - 1;
+        // 隣接アンカーの X 境界（ハンドルが時間軸をまたがないよう制限）
+        const prevAnchorX = !isFirst ? this.nodes[idx - 1].anchor.x : 0;
+        const nextAnchorX = !isLast  ? this.nodes[idx + 1].anchor.x : 1;
 
         if (type === 'anchor' && !isFirst && !isLast) {
-            const minX = this.nodes[idx - 1].anchor.x + 0.01;
-            const maxX = this.nodes[idx + 1].anchor.x - 0.01;
+            const minX = prevAnchorX + 0.01;
+            const maxX = nextAnchorX - 0.01;
             const newX = Math.max(minX, Math.min(maxX, bz.x));
             const dx   = newX - node.anchor.x;
             const dy   = bz.y - node.anchor.y;
@@ -340,31 +343,35 @@ class CurveEditor {
 
         } else if (type === 'handleOut' && node.handleOut) {
             if (node.smooth && node.handleIn) {
-                // スムーズ: 対称ミラー（X の片側制約を外す）
-                node.handleOut.x = Math.max(0, Math.min(1, bz.x));
-                node.handleOut.y = Math.max(-0.5, Math.min(1.5, bz.y));
-                const vx = node.handleOut.x - node.anchor.x;
-                const vy = node.handleOut.y - node.anchor.y;
-                node.handleIn.x = Math.max(0, Math.min(1, node.anchor.x - vx));
+                // スムーズ: 対称ミラー（X は隣接アンカー境界内に制限）
+                const ox = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
+                const oy = Math.max(-0.5, Math.min(1.5, bz.y));
+                node.handleOut.x = ox;
+                node.handleOut.y = oy;
+                const vx = ox - node.anchor.x;
+                const vy = oy - node.anchor.y;
+                node.handleIn.x = Math.max(prevAnchorX, node.anchor.x - vx);
                 node.handleIn.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
             } else {
                 // コーナー: 独立
-                node.handleOut.x = Math.max(node.anchor.x, Math.min(1, bz.x));
+                node.handleOut.x = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
                 node.handleOut.y = Math.max(-0.5, Math.min(1.5, bz.y));
             }
 
         } else if (type === 'handleIn' && node.handleIn) {
             if (node.smooth && node.handleOut) {
                 // スムーズ: 対称ミラー
-                node.handleIn.x = Math.max(0, Math.min(1, bz.x));
-                node.handleIn.y = Math.max(-0.5, Math.min(1.5, bz.y));
-                const vx = node.handleIn.x - node.anchor.x;
-                const vy = node.handleIn.y - node.anchor.y;
-                node.handleOut.x = Math.max(0, Math.min(1, node.anchor.x - vx));
+                const ix = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
+                const iy = Math.max(-0.5, Math.min(1.5, bz.y));
+                node.handleIn.x = ix;
+                node.handleIn.y = iy;
+                const vx = ix - node.anchor.x;
+                const vy = iy - node.anchor.y;
+                node.handleOut.x = Math.min(nextAnchorX, node.anchor.x - vx);
                 node.handleOut.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
             } else {
                 // コーナー: 独立
-                node.handleIn.x = Math.max(0, Math.min(node.anchor.x, bz.x));
+                node.handleIn.x = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
                 node.handleIn.y = Math.max(-0.5, Math.min(1.5, bz.y));
             }
         }
@@ -398,6 +405,46 @@ class CurveEditor {
         const idx = this._selected;
         if (idx === 0 || idx === this.nodes.length - 1) return;
         node.smooth = forceSmooth !== undefined ? forceSmooth : !node.smooth;
+        this.draw();
+        this._notifyChange();
+    }
+
+    /** 選択中の中間ノードの座標を数値で設定（数値入力欄からの精密入力用） */
+    setSelectedNodeCoords({ anchorX, anchorY, outY, inY } = {}) {
+        const idx = this._selected;
+        if (idx === null || idx === 0 || idx === this.nodes.length - 1) return;
+        const node        = this.nodes[idx];
+        const prevAnchorX = this.nodes[idx - 1].anchor.x;
+        const nextAnchorX = this.nodes[idx + 1].anchor.x;
+
+        if (anchorX !== undefined && !isNaN(anchorX)) {
+            const newX = Math.max(prevAnchorX + 0.01, Math.min(nextAnchorX - 0.01, anchorX));
+            const dx   = newX - node.anchor.x;
+            node.anchor.x = newX;
+            if (node.handleIn)  node.handleIn.x  = Math.max(prevAnchorX, Math.min(newX, node.handleIn.x  + dx));
+            if (node.handleOut) node.handleOut.x = Math.min(nextAnchorX, Math.max(newX, node.handleOut.x + dx));
+        }
+        if (anchorY !== undefined && !isNaN(anchorY)) {
+            const newY = Math.max(-0.5, Math.min(1.5, anchorY));
+            const dy   = newY - node.anchor.y;
+            node.anchor.y = newY;
+            if (node.handleIn)  node.handleIn.y  += dy;
+            if (node.handleOut) node.handleOut.y += dy;
+        }
+        if (outY !== undefined && !isNaN(outY) && node.handleOut) {
+            node.handleOut.y = Math.max(-0.5, Math.min(1.5, outY));
+            if (node.smooth && node.handleIn) {
+                const vy = node.handleOut.y - node.anchor.y;
+                node.handleIn.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+            }
+        }
+        if (inY !== undefined && !isNaN(inY) && node.handleIn) {
+            node.handleIn.y = Math.max(-0.5, Math.min(1.5, inY));
+            if (node.smooth && node.handleOut) {
+                const vy = node.handleIn.y - node.anchor.y;
+                node.handleOut.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+            }
+        }
         this.draw();
         this._notifyChange();
     }

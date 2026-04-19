@@ -2,6 +2,16 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.4.0] - Sun Apr 19 09:31:46 JST 2026
+### Added
+- `js/curveEditor.js`: `setSelectedNodeCoords({ anchorX, anchorY, outY, inY })` — 選択ノードの座標を数値で精密設定（数値入力欄からの入力用）
+- `index.html` / `css/style.css`: `#nc-coords` — 中間ノード選択時にアンカー X/Y・ハンドル Out Y・ハンドル In Y の精密入力欄を表示
+- `js/main.js`: 座標入力欄とエディタの双方向同期（フォーカス中は入力上書きしない）
+### Changed
+- `js/curveEditor.js`: ハンドル X の移動範囲を隣接アンカーの X 境界内に制限（時間軸をまたがない）
+  - handleOut.x ≤ 次アンカーの X、handleIn.x ≥ 前アンカーの X
+  - スムーズミラー後も両ハンドルにクランプ適用
+
 ## [0.3.0] - Sun Apr 19 09:26:02 JST 2026
 ### Added
 - `js/curveEditor.js`: ノード `smooth` プロパティ — `true` でハンドルをリンク（スムーズ接続）、`false` でコーナー（独立）

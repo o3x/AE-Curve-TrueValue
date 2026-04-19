@@ -157,6 +157,52 @@ body {
 }
 .nc-btn-delete:hover { background: rgba(204, 80, 80, 0.15); border-color: #cc6666; }
 
+/* ── 選択ノード座標入力 ── */
+#nc-coords {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nc-coord-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nc-coord-label {
+  width: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.nc-coord-axis {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.nc-coord-input {
+  width: 52px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-size: 10px;
+  padding: 2px 4px;
+  text-align: right;
+}
+
+.nc-coord-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ── CSS cubic-bezier 表示 ── */
 #css-value-wrap {
   text-align: center;

@@ -2,8 +2,8 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.3.0
- * Date: Sun Apr 19 09:11:55 JST 2026
+ * Version: 0.4.0
+ * Date: Sun Apr 19 09:31:46 JST 2026
  */
 
 // ── プリセット定義 ─────────────────────────────────────────
@@ -48,6 +48,10 @@ const elNodeControls = document.getElementById('node-controls');
 const elBtnSmooth    = document.getElementById('btnSmooth');
 const elBtnCorner    = document.getElementById('btnCorner');
 const elBtnDelete    = document.getElementById('btnNodeDelete');
+const elNcAnchorX    = document.getElementById('ncAnchorX');
+const elNcAnchorY    = document.getElementById('ncAnchorY');
+const elNcOutY       = document.getElementById('ncOutY');
+const elNcInY        = document.getElementById('ncInY');
 const elCssVal       = document.getElementById('cssValue');
 const elCssWrap      = document.getElementById('css-value-wrap');
 const elApply        = document.getElementById('btnApply');
@@ -94,6 +98,13 @@ function onNodesChanged(nodes) {
         const isSmooth = node.smooth !== false;
         elBtnSmooth.classList.toggle('active', isSmooth);
         elBtnCorner.classList.toggle('active', !isSmooth);
+
+        // 座標入力を更新（フォーカス中は上書きしない）
+        const act = document.activeElement;
+        if (act !== elNcAnchorX) elNcAnchorX.value = fmt(node.anchor.x);
+        if (act !== elNcAnchorY) elNcAnchorY.value = fmt(node.anchor.y);
+        if (node.handleOut && act !== elNcOutY) elNcOutY.value = fmt(node.handleOut.y);
+        if (node.handleIn  && act !== elNcInY)  elNcInY.value  = fmt(node.handleIn.y);
     }
 }
 
@@ -112,6 +123,23 @@ function syncEditorFromInputs() {
 [elP1x, elP1y, elP2x, elP2y].forEach(el => {
     el.addEventListener('input',  syncEditorFromInputs);
     el.addEventListener('change', syncEditorFromInputs);
+});
+
+// ── 選択ノード座標入力 ────────────────────────────────────
+/** @type {[HTMLInputElement, string][]} */
+const ncInputPairs = [
+    [elNcAnchorX, 'anchorX'],
+    [elNcAnchorY, 'anchorY'],
+    [elNcOutY,    'outY'],
+    [elNcInY,     'inY'],
+];
+ncInputPairs.forEach(([el, field]) => {
+    const sync = () => {
+        const val = parseFloat(el.value);
+        if (!isNaN(val)) editor.setSelectedNodeCoords({ [field]: val });
+    };
+    el.addEventListener('input',  sync);
+    el.addEventListener('change', sync);
 });
 
 // ── ノードコントロールボタン ───────────────────────────────
