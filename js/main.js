@@ -6,6 +6,8 @@
  * Date: Sun Apr 19 09:31:46 JST 2026
  */
 
+const VERSION = '0.4.3';
+
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
     { name: 'Linear',      p1x: 0.00, p1y: 0.00, p2x: 1.00, p2y: 1.00 },
@@ -57,6 +59,7 @@ const elCssWrap      = document.getElementById('css-value-wrap');
 const elApply        = document.getElementById('btnApply');
 const elStatus       = document.getElementById('statusText');
 const elPresets      = document.getElementById('preset-buttons');
+const elVersion      = document.getElementById('versionText');
 
 // ── 状態 ──────────────────────────────────────────────────
 let currentNodes = null;
@@ -188,7 +191,7 @@ elApply.addEventListener('click', () => {
                 setStatus(`エラー: ${res.message}`, 'error');
             }
         } catch {
-            setStatus('レスポンス解析エラー', 'error');
+            setStatus('レスポンス解析エラー: ' + String(result).slice(0, 120), 'error');
         }
     });
 });
@@ -205,3 +208,4 @@ function setStatus(msg, type = '') {
 // ── 初期化 ────────────────────────────────────────────────
 currentNodes = editor.nodes;
 onNodesChanged(currentNodes);
+elVersion.textContent = 'v' + VERSION;

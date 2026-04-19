@@ -302,8 +302,17 @@ body {
 
 /* ── ステータスバー ── */
 #status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 2px 0;
   min-height: 16px;
+}
+
+#versionText {
+  font-size: 9px;
+  color: #444444;
+  flex-shrink: 0;
 }
 
 #statusText {
