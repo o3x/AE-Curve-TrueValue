@@ -173,7 +173,9 @@ function applyEase(argsJson) {
                                 timeDeltaFull, valueDeltaFull,
                                 linearSpatial);
                         }
-                    } catch (segErr) { /* テンポラル補完非対応プロパティは無視 */ }
+                    } catch (segErr) {
+                        return JSON.stringify({ status: 'error', message: segErr.message + ' (line ' + segErr.line + ')' });
+                    }
                 }
 
                 // イーズ適用後に次元分割（先に分割するとプロパティ構造が変わるため）
