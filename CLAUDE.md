@@ -91,7 +91,7 @@ inInfluence  = (1 - P2x) * 100
 inSpeed      = ((1 - P2y) / (1 - P2x)) * (valueDelta / timeDelta)
 ```
 
-精度問題には `@problem` / `@solution` コメントで記録する。
+AE 特有の仕様回避は通常のコメントで記録する（`// @` はプリプロセッサ命令と誤認されるため JSX では使わない）。
 
 ### 多ノード適用フロー（hostscript.jsx）
 

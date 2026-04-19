@@ -95,8 +95,7 @@ function applyEase(argsJson) {
                 if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
 
                 // 次元分割オプション
-                // @problem dimensionsSeparated は Position 系のみ有効
-                // @solution matchName で判定
+                // dimensionsSeparated は Position 系のみ有効 → matchName で判定
                 if (splitDimensions) {
                     try {
                         var mn = prop.matchName;
@@ -173,9 +172,7 @@ function _applySegmentEase(prop, idxA, idxB, p1x, p1y, p2x, p2y,
     var easesB = prop.getTemporalEaseAtKey(idxB);
     prop.setTemporalEaseAtKey(idxB, [inEase], easesB[1]);
 
-    // 空間補完のリニア化
-    // @problem Position 以外で setSpatialTangents を呼ぶとエラー
-    // @solution try/catch で握りつぶす
+    // 空間補完のリニア化（Position 以外で呼ぶとエラーになるため try/catch で握りつぶす）
     if (linearSpatial) {
         try { prop.setSpatialTangentsAtKey(idxA, [0,0,0], [0,0,0]); } catch(e2) {}
         try { prop.setSpatialTangentsAtKey(idxB, [0,0,0], [0,0,0]); } catch(e2) {}
@@ -219,8 +216,7 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
             try { prop.setSpatialTangentsAtKey(newIdx, [0,0,0], [0,0,0]); } catch(e2) {}
         }
 
-        // @problem 後ろから挿入するたびに既存インデックスが +1 ずれる
-        // @solution 今回の挿入位置以降のインデックスをすべてインクリメント
+        // 後ろから挿入するたびに既存インデックスが +1 ずれるため補正
         for (var j = 0; j < insertedIndices.length; j++) {
             if (insertedIndices[j] >= newIdx) insertedIndices[j]++;
         }
@@ -246,8 +242,7 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
         var svA = prop.keyValue(segA), svB = prop.keyValue(segB);
         var segValueDelta = (svA instanceof Array) ? svB[0] - svA[0] : svB - svA;
 
-        // @problem handle 座標はグローバル 0-1 空間 → セグメント相対に変換が必要
-        // @solution (handleX - ta) / (tb - ta) でセグメント内の相対位置を計算
+        // handle 座標はグローバル 0-1 空間のため、セグメント相対座標に変換してから渡す
         var ta = nodeA.anchor.x, tb = nodeB.anchor.x;
         var va = nodeA.anchor.y, vb = nodeB.anchor.y;
         var dtSeg = tb - ta;
