@@ -6,7 +6,7 @@
  * Date: Sun Apr 19 09:31:46 JST 2026
  */
 
-const VERSION = '0.4.3';
+const VERSION = '0.4.4';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
@@ -209,3 +209,10 @@ function setStatus(msg, type = '') {
 currentNodes = editor.nodes;
 onNodesChanged(currentNodes);
 elVersion.textContent = 'v' + VERSION;
+
+// JSX 読み込み確認
+csInterface.evalScript('typeof applyEase', (r) => {
+    if (r !== 'function') {
+        setStatus('JSX 未ロード: ' + String(r), 'error');
+    }
+});
