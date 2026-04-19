@@ -214,12 +214,16 @@ function _applySegmentEase(prop, idxA, idxB, p1x, p1y, p2x, p2y,
     var outEase = new KeyframeEase(Math.abs(ease.outSpeed), ease.outInfluence);
     var inEase  = new KeyframeEase(Math.abs(ease.inSpeed),  ease.inInfluence);
 
-    // idxA の out ease, idxB の in ease を設定
-    var easesA = prop.getTemporalEaseAtKey(idxA);
-    prop.setTemporalEaseAtKey(idxA, easesA[0], [outEase]);
+    // idxA の out ease、idxB の in ease を設定
+    // getTemporalEaseAtKey が使えない場合はデフォルト値でフォールバック
+    var defEase = new KeyframeEase(0, 33.33);
+    var inEaseA = defEase;
+    try { inEaseA = prop.getTemporalEaseAtKey(idxA)[0][0]; } catch(e) {}
+    prop.setTemporalEaseAtKey(idxA, [inEaseA], [outEase]);
 
-    var easesB = prop.getTemporalEaseAtKey(idxB);
-    prop.setTemporalEaseAtKey(idxB, [inEase], easesB[1]);
+    var outEaseB = defEase;
+    try { outEaseB = prop.getTemporalEaseAtKey(idxB)[1][0]; } catch(e) {}
+    prop.setTemporalEaseAtKey(idxB, [inEase], [outEaseB]);
 
     // 空間補完のリニア化（Position 以外で呼ぶとエラーになるため try/catch で握りつぶす）
     if (linearSpatial) {
