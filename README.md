@@ -173,4 +173,7 @@ Y
 
 ## ライセンス
 
-[Apache License 2.0](LICENSE)
+本ソフトウェアは [Apache License 2.0](LICENSE) の下で公開されています。
+詳細は `LICENSE` ファイルをご確認ください。
+
+Copyright 2026 OHYAMA, Yoshihisa

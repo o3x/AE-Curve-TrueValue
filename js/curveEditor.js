@@ -13,8 +13,8 @@
  *   Alt+クリック      中間ノードの smooth/corner 切替
  *   Delete/Backspace  選択中の中間ノードを削除
  *
- * Version: 0.4.0
- * Date: Sun Apr 19 09:31:46 JST 2026
+ * Version: 0.5.2
+ * Date: Thu Apr 30 12:03:27 JST 2026
  */
 
 class CurveEditor {
@@ -216,17 +216,17 @@ class CurveEditor {
 
     _drawHandle(bx, by, color) {
         const { ctx } = this;
-        const r = Math.max(4, Math.floor(this.size * 0.025));
+        const r = Math.max(2, Math.floor(this.size * 0.007));
         const { cx, cy } = this.toCanvas(bx, by);
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.fillStyle = color; ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
     }
 
     /** @param {boolean} isCorner - true なら四角（コーナーノード） */
     _drawAnchor(bx, by, color, selected, isCorner) {
         const { ctx } = this;
-        const r = Math.max(5, Math.floor(this.size * 0.028));
+        const r = Math.max(2, Math.floor(this.size * 0.008));
         const { cx, cy } = this.toCanvas(bx, by);
         ctx.beginPath();
         if (isCorner) {
@@ -287,15 +287,14 @@ class CurveEditor {
         const { cx, cy } = this._getPos(e);
         const hit = this._hitTest(cx, cy);
 
-        // Alt+クリック: 中間ノードの smooth/corner を切替
-        if (e.altKey && hit && hit.type === 'anchor') {
-            const { idx } = hit;
-            if (idx > 0 && idx < this.nodes.length - 1) {
-                this.nodes[idx].smooth = !this.nodes[idx].smooth;
-                this._selected = idx;
-                this.draw();
-                this._notifyChange();
-            }
+        // Ctrl+クリック（ヒットなし）: 曲線上にノードを追加
+        if (e.ctrlKey && !hit) {
+            const bz = this.toBezier(cx, cy);
+            const { segIdx, t } = this._findClosest(bz.x, bz.y);
+            this._splitAt(segIdx, t);
+            this.draw();
+            this._notifyChange();
+            e.preventDefault();
             return;
         }
 
@@ -342,37 +341,37 @@ class CurveEditor {
             if (node.handleOut) { node.handleOut.x += dx; node.handleOut.y += dy; }
 
         } else if (type === 'handleOut' && node.handleOut) {
-            if (node.smooth && node.handleIn) {
-                // スムーズ: 対称ミラー（X は隣接アンカー境界内に制限）
-                const ox = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
-                const oy = Math.max(-0.5, Math.min(1.5, bz.y));
-                node.handleOut.x = ox;
-                node.handleOut.y = oy;
+            const ox = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
+            const oy = Math.max(-0.5, Math.min(1.5, bz.y));
+            node.handleOut.x = ox;
+            node.handleOut.y = oy;
+            if (!e.ctrlKey && node.handleIn) {
+                // Ctrl なし → スムーズ: 対称ミラー
+                node.smooth = true;
                 const vx = ox - node.anchor.x;
                 const vy = oy - node.anchor.y;
                 node.handleIn.x = Math.max(prevAnchorX, node.anchor.x - vx);
                 node.handleIn.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
-            } else {
-                // コーナー: 独立
-                node.handleOut.x = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
-                node.handleOut.y = Math.max(-0.5, Math.min(1.5, bz.y));
+            } else if (node.handleIn) {
+                // Ctrl あり → コーナー: 独立
+                node.smooth = false;
             }
 
         } else if (type === 'handleIn' && node.handleIn) {
-            if (node.smooth && node.handleOut) {
-                // スムーズ: 対称ミラー
-                const ix = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
-                const iy = Math.max(-0.5, Math.min(1.5, bz.y));
-                node.handleIn.x = ix;
-                node.handleIn.y = iy;
+            const ix = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
+            const iy = Math.max(-0.5, Math.min(1.5, bz.y));
+            node.handleIn.x = ix;
+            node.handleIn.y = iy;
+            if (!e.ctrlKey && node.handleOut) {
+                // Ctrl なし → スムーズ: 対称ミラー
+                node.smooth = true;
                 const vx = ix - node.anchor.x;
                 const vy = iy - node.anchor.y;
                 node.handleOut.x = Math.min(nextAnchorX, node.anchor.x - vx);
                 node.handleOut.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
-            } else {
-                // コーナー: 独立
-                node.handleIn.x = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
-                node.handleIn.y = Math.max(-0.5, Math.min(1.5, bz.y));
+            } else if (node.handleOut) {
+                // Ctrl あり → コーナー: 独立
+                node.smooth = false;
             }
         }
 

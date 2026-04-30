@@ -2,11 +2,11 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.4.0
- * Date: Sun Apr 19 09:31:46 JST 2026
+ * Version: 0.5.2
+ * Date: Thu Apr 30 12:03:27 JST 2026
  */
 
-const VERSION = '0.5.0';
+const VERSION = '0.5.2';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
