@@ -10,8 +10,18 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 
 解決する問題:
 - **速度グラフの認知不整合** → 0-1 正規化 cubic-bezier カーブで直感的に表示
-- **ブーメラン効果** → 空間補完を Linear に自動設定するオプション
-- **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割
+- **ブーメラン効果** → 空間補完を Linear に自動設定するオプション（暫定）→ 将来はエクスプレッション方式で根絶
+- **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割（暫定）→ 将来はエクスプレッション方式で不要に
+
+### 次世代アーキテクチャ
+
+現行の speed/influence 変換方式は AE の API 制限により不完全（Position round-trip 不可、オーバーシュート非対応など）。
+**エクスプレッションベース補完**への移行を計画中。詳細は **`DESIGN.md`** を参照。
+
+```
+暫定（現行）: cubic-bezier → speed/influence → AE が補間
+理想（計画）: cubic-bezier → prop.expression に直接書き込む → AE は値を受け取るだけ
+```
 
 ## Tech Stack
 
@@ -20,8 +30,11 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 | パネル UI | HTML5 / CSS3 / ES2020+ | CEP 内蔵 Chromium で動作 |
 | AE API アクセス | ExtendScript (.jsx) | **ES3 必須**（`var` のみ） |
 | AE ↔ パネル通信 | `csInterface.evalScript()` | JSON 文字列でやり取り |
+| AE エクスプレッション（計画中） | JS 文字列として JSX から `prop.expression` に書き込む | **ES2018 使用可**（`const`/`let`/アロー関数 OK） |
 
 ビルドシステムなし。ファイルを直接 CEP がロードする。
+
+> **言語の混在に注意**: JSX は ES3 だが、JSX が生成して `prop.expression` に書き込む文字列の中身は ES2018 で書いてよい。
 
 ## 開発環境セットアップ（初回のみ）
 
@@ -106,7 +119,9 @@ nodes = [
 - Y 軸は [-0.5, 1.5] を許容（オーバーシュート表現）
 - ハンドル X 軸: `handleOut.x ∈ [anchor.x, 次アンカーX]`、`handleIn.x ∈ [前アンカーX, anchor.x]`（時間軸をまたがない制限）
 
-### AE ↔ cubic-bezier 変換（近似）
+### AE ↔ cubic-bezier 変換（現行・暫定）
+
+> 将来はエクスプレッション方式（`DESIGN.md` Phase 1）に置き換え予定。以下は現行の speed/influence 変換の仕様。
 
 **単一セグメント（グローバル座標 = セグメント座標）:**
 ```
@@ -165,10 +180,13 @@ if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 
 - **`typeof` でプロパティメソッドを確認できない**: AE オブジェクトのメソッドは `typeof prop.getTemporalEaseAtKey` が `'undefined'` を返すことがあるが、実際には呼び出せない（未定義エラーになる）。メソッドの存在確認には `typeof` ではなく `try-catch` を使う。
 - **`JSON` が存在しない**: `typeof JSON === 'undefined'`。`hostscript.jsx` 先頭の JSON ポリフィルで対処済み。新規 JSX ファイルを作る場合も同様のポリフィルが必要。
-- **`comp.selectedProperties` 参照と layer 階層参照の使い分け**:
+- **`// @` で始まるコメントは ExtendScript がプリプロセッサ命令と解釈して構文エラーになる**: JSX 内では `//` の後に `@` を書かない。
+- **`comp.selectedProperties` 参照と layer 階層参照の使い分け**（現行 `getKfCurve` で重要）:
   - `comp.selectedProperties` 参照（disconnected）: `keySelected()` / `keyTime()` / `keyValue()` / `setTemporalEaseAtKey()` は動く。`getTemporalEaseAtKey()` は未定義エラーになる。
   - `comp.layer(l)` 階層参照（live）: `getTemporalEaseAtKey()` は動く。`keySelected()` は常に false を返す。
   - **解決策**: (1) `comp.selectedProperties` で選択KFの時刻を収集、(2) `_findLivePropByTimes(propGroup, times)` でその時刻に一致する live property を探す。`getKfCurve()` に参照実装がある。
+  - **将来**: エクスプレッション方式では `getTemporalEaseAtKey` を使わなくなるためこの問題は消滅する。
+- **`KeyframeEase.speed` は非負数**: `Math.abs()` を必ず挟む。逆算時は `segTin / Math.abs(segVin)` で符号を除去しないと値が減少するセグメントで P1y/P2y が鏡像になる（v0.6.1 修正済み）。
 
 ## コーディング規則
 
@@ -180,7 +198,8 @@ if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 - **ES3 必須**: `var` のみ、`let`/`const`/アロー関数禁止
 - `app.beginUndoGroup` / `app.endUndoGroup` で囲む（`finally` で確実に閉じる）
 - エラーは `JSON.stringify({ status:'error', message: e.message + ' (line ' + e.line + ')' })` で返す
-- **`// @` で始まるコメントは使わない**: ExtendScript がプリプロセッサ命令と解釈して構文エラーになる
+- **`// @` で始まるコメントは書かない**: ExtendScript がプリプロセッサ命令と解釈して構文エラーになる
+- **`prop.expression` に書き込む文字列の中身は ES2018 で書いてよい**: JSX の ES3 制約はホストスクリプト本体にのみ適用される
 
 ### 共通
 - コメント・コミットメッセージは日本語
