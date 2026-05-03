@@ -2,11 +2,11 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.5.2
- * Date: Thu Apr 30 12:03:27 JST 2026
+ * Version: 0.6.1
+ * Date: Sun May 03 14:41:07 JST 2026
  */
 
-const VERSION = '0.5.2';
+const VERSION = '0.6.1';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
@@ -56,6 +56,7 @@ const elNcOutY       = document.getElementById('ncOutY');
 const elNcInY        = document.getElementById('ncInY');
 const elCssVal       = document.getElementById('cssValue');
 const elCssWrap      = document.getElementById('css-value-wrap');
+const elGet          = document.getElementById('btnGet');
 const elApply        = document.getElementById('btnApply');
 const elStatus       = document.getElementById('statusText');
 const elPresets      = document.getElementById('preset-buttons');
@@ -167,6 +168,29 @@ PRESETS.forEach((preset) => {
     elPresets.appendChild(btn);
 });
 
+// ── GET ボタン（KF読み取り） ─────────────────────────────
+elGet.addEventListener('click', () => {
+    setStatus('KF読み取り中...', 'info');
+    elGet.disabled = true;
+    csInterface.evalScript('getKfCurve()', (result) => {
+        elGet.disabled = false;
+        try {
+            const res = JSON.parse(result);
+            if (res.status === 'ok') {
+                editor.setNodes(res.nodes);
+                const msg = res.spatialFallback
+                    ? 'KFから読み取りました（空間補完プロパティのため速度のみ近似）'
+                    : 'KFからカーブを読み取りました (' + res.nodes.length + '点)';
+                setStatus(msg, 'success');
+            } else {
+                setStatus(`エラー: ${res.message}`, 'error');
+            }
+        } catch {
+            setStatus('レスポンス解析エラー: ' + String(result).slice(0, 120), 'error');
+        }
+    });
+});
+
 // ── 適用ボタン ────────────────────────────────────────────
 elApply.addEventListener('click', () => {
     if (!currentNodes) return;
@@ -187,6 +211,8 @@ elApply.addEventListener('click', () => {
             const res = JSON.parse(result);
             if (res.status === 'ok') {
                 setStatus(`${res.count} KF に適用しました`, 'success');
+            } else if (res.status === 'cancel') {
+                setStatus('キャンセルしました');
             } else {
                 setStatus(`エラー: ${res.message}`, 'error');
             }
@@ -201,7 +227,7 @@ function setStatus(msg, type = '') {
     elStatus.textContent = msg;
     elStatus.className   = type;
     if (type === 'success') setTimeout(() => setStatus(
-        'ダブルクリック: ノード追加 / Alt+クリック: スムーズ切替'
+        'ダブルクリック / Ctrl+クリック: ノード追加 | ハンドルドラッグ: スムーズ / Ctrl+ドラッグ: コーナー'
     ), 3000);
 }
 

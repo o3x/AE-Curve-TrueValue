@@ -277,9 +277,14 @@ body {
   cursor: pointer;
 }
 
-/* ── 適用ボタン ── */
+/* ── 適用エリア ── */
+#apply-area {
+  display: flex;
+  gap: 6px;
+}
+
 #btnApply {
-  width: 100%;
+  flex: 1;
   padding: 7px;
   background: var(--accent);
   border: none;
@@ -299,6 +304,21 @@ body {
   cursor: not-allowed;
   opacity: 1;
 }
+
+#btnGet {
+  padding: 7px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+#btnGet:hover { opacity: 0.8; }
+#btnGet:disabled { cursor: not-allowed; opacity: 0.4; }
 
 /* ── ステータスバー ── */
 #status-bar {

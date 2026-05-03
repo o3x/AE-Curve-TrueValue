@@ -2,6 +2,34 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.6.1] - Sun May 03 14:41:07 JST 2026
+### Fixed
+- `jsx/hostscript.jsx`: `getKfCurve()` — spatialFallback の `speedAtTime` 近似を `valueAtTime` サンプリング＋線形システムによる逆算に置き換え
+  - P1x=1/3, P2x=2/3 に固定すると ベジェパラメータ t が正規化時間 x と一致する性質を利用
+  - セグメント 25%/75% 時刻でサンプリングし、`By(0.25)` / `By(0.75)` の連立方程式を解析的に解いて P1y/P2y を逆算
+  - 多次元プロパティ（Position）は累積ユークリッド距離で正規化してから同方程式を適用
+- `jsx/hostscript.jsx`: `getKfCurve()` — 1D プロパティで値が**減少**するセグメントのイーズ逆算バグを修正
+  - AE の `KeyframeEase.speed` は常に非負（絶対値）で保存されるにもかかわらず、逆算スケール係数 `scIn`/`scOut` に符号付き `segV` を使っていたため P1y/P2y が鏡像になっていた
+  - 修正: `segTin / Math.abs(segVin)` / `segTout / Math.abs(segVout)` に変更
+
+## [0.6.0] - Sat May 02 17:51:07 JST 2026
+### Added
+- **KFから読み取り（GET）ボタン**を追加
+  - 選択KF群のイーズを逆変換してカーブエディタへ反映（2KF → 単一セグメント、3KF以上 → 中間ノードを復元）
+  - 各セグメントの OutEase/InEase から cubic-bezier ハンドル座標を逆算し、ノード配列として復元
+  - `comp.selectedProperties`（disconnected 参照）では `keySelected()` は動くが `getTemporalEaseAtKey()` は未定義になる AE の制限を回避するため、選択KF時刻を取得してレイヤー階層の live 参照を逆引きする方式を採用
+  - `jsx/hostscript.jsx`: `getKfCurve()` / `_findLivePropByTimes()` 関数を新規追加
+- **複数KF適用時のモード選択ダイアログ**を追加
+  - 3KF以上選択状態で適用すると ExtendScript ダイアログを表示
+  - A: 各セグメントに現在のカーブを適用（既存動作）
+  - B: 中間KFをすべて削除し始点〜終点に適用
+  - Enter でフォーカス中のボタンを実行、Esc でキャンセル
+  - `jsx/hostscript.jsx`: `_showModeDialog()` 関数を新規追加
+### Changed
+- `jsx/hostscript.jsx`: `applyEase()` を改修 — KF数判定・ダイアログ呼出し・モードA/B分岐を追加
+- `js/main.js`: キャンセル応答 (`status:'cancel'`) を適用ハンドラで処理
+- ステータスメッセージから廃止済みの Alt+クリック案内を削除
+
 ## [0.5.2] - Thu Apr 30 12:03:27 JST 2026
 ### Changed
 - `js/curveEditor.js`: ノード追加・スムーズ/コーナー切替の操作方法を変更

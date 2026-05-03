@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ExtensionManifest
     ExtensionBundleId="com.o3x.curve-truevalue"
-    ExtensionBundleVersion="0.5.2"
+    ExtensionBundleVersion="0.6.1"
     ExtensionBundleName="Curve-TrueValue"
     Version="9.0">
 
   <ExtensionList>
-    <Extension Id="com.o3x.curve-truevalue.panel" Version="0.5.2"/>
+    <Extension Id="com.o3x.curve-truevalue.panel" Version="0.6.1"/>
   </ExtensionList>
 
   <ExecutionEnvironment>

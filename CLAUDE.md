@@ -165,7 +165,10 @@ if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 
 - **`typeof` でプロパティメソッドを確認できない**: AE オブジェクトのメソッドは `typeof prop.getTemporalEaseAtKey` が `'undefined'` を返すことがあるが、実際には呼び出せない（未定義エラーになる）。メソッドの存在確認には `typeof` ではなく `try-catch` を使う。
 - **`JSON` が存在しない**: `typeof JSON === 'undefined'`。`hostscript.jsx` 先頭の JSON ポリフィルで対処済み。新規 JSX ファイルを作る場合も同様のポリフィルが必要。
-- **`comp.selectedProperties` の挙動**: キーフレームを選択すると対応プロパティが返るが、`PropertyGroup` も混入する可能性がある。`prop.numKeys === 0` でスキップすれば大半は除外できる。`getTemporalEaseAtKey` を呼ぶ際も try-catch が必要。
+- **`comp.selectedProperties` 参照と layer 階層参照の使い分け**:
+  - `comp.selectedProperties` 参照（disconnected）: `keySelected()` / `keyTime()` / `keyValue()` / `setTemporalEaseAtKey()` は動く。`getTemporalEaseAtKey()` は未定義エラーになる。
+  - `comp.layer(l)` 階層参照（live）: `getTemporalEaseAtKey()` は動く。`keySelected()` は常に false を返す。
+  - **解決策**: (1) `comp.selectedProperties` で選択KFの時刻を収集、(2) `_findLivePropByTimes(propGroup, times)` でその時刻に一致する live property を探す。`getKfCurve()` に参照実装がある。
 
 ## コーディング規則
 
