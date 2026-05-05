@@ -13,15 +13,17 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 - **ブーメラン効果** → 空間補完を Linear に自動設定するオプション（暫定）→ 将来はエクスプレッション方式で根絶
 - **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割（暫定）→ 将来はエクスプレッション方式で不要に
 
-### 次世代アーキテクチャ
+### アーキテクチャ（v0.7.0〜）
 
-現行の speed/influence 変換方式は AE の API 制限により不完全（Position round-trip 不可、オーバーシュート非対応など）。
-**エクスプレッションベース補完**への移行を計画中。詳細は **`DESIGN.md`** を参照。
+v0.7.0 より **エクスプレッションベース補完**に移行済み（DESIGN.md Phase 1 + Phase 2 実装完了）。詳細は **`DESIGN.md`** を参照。
 
 ```
-暫定（現行）: cubic-bezier → speed/influence → AE が補間
-理想（計画）: cubic-bezier → prop.expression に直接書き込む → AE は値を受け取るだけ
+旧（〜v0.6.x）: cubic-bezier → speed/influence → AE が補間  ← オーバーシュート不可・round-trip 不可
+現行（v0.7.0〜）: cubic-bezier → prop.expression（Newton 法ソルバー） → AE は値を受け取るだけ
 ```
+
+- `/*CTV:[[p1x,p1y,p2x,p2y], ...]*/` コメントを先頭に埋め込み、GET 時に完全一致で復元
+- `clearExpression()` でネイティブ補完（speed/influence 近似）に戻せる
 
 ## Tech Stack
 
@@ -141,9 +143,10 @@ lP1y = (handleOut.y - va) / (vb - va)   // va,vb = 前後アンカーの y
 ### 多ノード適用フロー（hostscript.jsx）
 
 nodes が 3 点以上の場合、`_applyMultiNodeEase` が:
-1. 中間ノードをループ（**後ろから**）して `prop.addKey()` で AE に中間 KF を生成
+1. 中間ノードをループ（**後ろから**）して `prop.addKey()` で AE に中間 KF を **HOLD 補間**で生成
 2. 各挿入後、既存 `insertedIndices` のうち `>= newIdx` のものを +1 補正（インデックスズレ防止）
-3. 全セグメントに対してセグメント相対座標に変換してから `_applySegmentEase` を適用
+3. セグメントごとにローカル座標へ変換した bezier パラメータで `s = [[...], ...]` 配列を構築
+4. `prop.expression = _buildCtvExpr(segsJson)` でエクスプレッションを一括書き込み
 
 ### csInterface パターン
 

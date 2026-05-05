@@ -320,6 +320,20 @@ body {
 #btnGet:hover { opacity: 0.8; }
 #btnGet:disabled { cursor: not-allowed; opacity: 0.4; }
 
+#btnClear {
+  padding: 7px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+#btnClear:hover { opacity: 0.8; color: var(--text); }
+#btnClear:disabled { cursor: not-allowed; opacity: 0.4; }
+
 /* ── ステータスバー ── */
 #status-bar {
   display: flex;

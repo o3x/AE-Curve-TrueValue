@@ -2,6 +2,20 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.7.0] - Sun May 03 17:41:57 JST 2026
+### Changed（破壊的変更）
+- **エクスプレッションベース補完に全面移行（DESIGN.md Phase 1 + Phase 2 実装）**
+  - `_applySegmentEase`: BEZIER + speed/influence 方式 → **HOLD KF + `prop.expression` 書き込み**に置き換え
+  - `_applyMultiNodeEase`: 同様（`s` 配列に全セグメントのベジェパラメータを格納し一括でエクスプレッション書き込み）
+  - エクスプレッション本体は Newton 法 cubic-bezier ソルバー（ES2018）、先頭 `/*CTV:[[...]]*/` にメタデータ埋め込み
+  - この変更により**オーバーシュート・アンティシペートが正確に適用可能**、**Position の完全 round-trip が実現**
+### Added
+- `jsx/hostscript.jsx`: `_buildCtvExpr(segsJson)` — CTV エクスプレッション文字列を生成するヘルパー
+- `jsx/hostscript.jsx`: `_r4(v)` — 小数点4桁丸め（エクスプレッション埋め込み用）
+- `jsx/hostscript.jsx`: `clearExpression()` — CTV エクスプレッションを削除し speed/influence ネイティブ補完に変換（オーバーシュートは近似）
+- `jsx/hostscript.jsx`: `getKfCurve()` に `/*CTV:...*/` コメントパースを優先ルートとして追加（Phase 2）。パース成功時は完全一致の nodes[] を返す（近似なし）
+- `index.html` / `css/style.css` / `js/main.js`: **「Expr クリア」ボタン**を追加（`clearExpression` 呼び出し）
+
 ## [0.6.1] - Sun May 03 14:41:07 JST 2026
 ### Fixed
 - `jsx/hostscript.jsx`: `getKfCurve()` — spatialFallback の `speedAtTime` 近似を `valueAtTime` サンプリング＋線形システムによる逆算に置き換え

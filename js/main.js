@@ -2,11 +2,11 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.6.1
- * Date: Sun May 03 14:41:07 JST 2026
+ * Version: 0.7.0
+ * Date: Sun May 03 17:41:57 JST 2026
  */
 
-const VERSION = '0.6.1';
+const VERSION = '0.7.0';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
@@ -58,6 +58,7 @@ const elCssVal       = document.getElementById('cssValue');
 const elCssWrap      = document.getElementById('css-value-wrap');
 const elGet          = document.getElementById('btnGet');
 const elApply        = document.getElementById('btnApply');
+const elClear        = document.getElementById('btnClear');
 const elStatus       = document.getElementById('statusText');
 const elPresets      = document.getElementById('preset-buttons');
 const elVersion      = document.getElementById('versionText');
@@ -213,6 +214,25 @@ elApply.addEventListener('click', () => {
                 setStatus(`${res.count} KF に適用しました`, 'success');
             } else if (res.status === 'cancel') {
                 setStatus('キャンセルしました');
+            } else {
+                setStatus(`エラー: ${res.message}`, 'error');
+            }
+        } catch {
+            setStatus('レスポンス解析エラー: ' + String(result).slice(0, 120), 'error');
+        }
+    });
+});
+
+// ── エクスプレッション クリア ─────────────────────────────
+elClear.addEventListener('click', () => {
+    setStatus('エクスプレッションをクリア中...', 'info');
+    elClear.disabled = true;
+    csInterface.evalScript('clearExpression()', (result) => {
+        elClear.disabled = false;
+        try {
+            const res = JSON.parse(result);
+            if (res.status === 'ok') {
+                setStatus(`${res.count} プロパティのエクスプレッションをクリアしました（ネイティブ近似）`, 'success');
             } else {
                 setStatus(`エラー: ${res.message}`, 'error');
             }
