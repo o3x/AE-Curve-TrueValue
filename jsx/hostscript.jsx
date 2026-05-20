@@ -2,8 +2,8 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.7.0
- * Date: Sun May 03 17:41:57 JST 2026
+ * Version: 0.8.1
+ * Date: Wed May 20 21:27:14 JST 2026
  *
  * 関数一覧:
  *   getSelectedKfData()  → JSON            （旧・後方互換用）
@@ -242,19 +242,19 @@ function getKfCurve() {
         var indices = liveResult.indices;
         var n       = indices.length;
 
-        // Step 3: イーズ取得（getTemporalEaseAtKey が使える場合のみ）
+        // Step 3: イーズ取得
+        // typeof による存在確認は ExtendScript では信頼できない（live 参照でも 'undefined' を返す）。
+        // try-catch のみで判定する。
         var eases = [];
-        var spatialFallback = (typeof prop.getTemporalEaseAtKey !== 'function');
-        if (!spatialFallback) {
-            for (var qi = 0; qi < n; qi++) {
-                try {
-                    var ea = prop.getTemporalEaseAtKey(indices[qi]);
-                    eases.push({ inEase: ea[0][0], outEase: ea[1][0] });
-                } catch (e) {
-                    spatialFallback = true;
-                    eases = [];
-                    break;
-                }
+        var spatialFallback = false;
+        for (var qi = 0; qi < n; qi++) {
+            try {
+                var ea = prop.getTemporalEaseAtKey(indices[qi]);
+                eases.push({ inEase: ea[0][0], outEase: ea[1][0] });
+            } catch (e) {
+                spatialFallback = true;
+                eases = [];
+                break;
             }
         }
 
@@ -341,7 +341,7 @@ function getKfCurve() {
                             smooth:    true
                         });
                     }
-                    return JSON.stringify({ status: 'ok', nodes: ctvNodes, spatialFallback: false });
+                    return JSON.stringify({ status: 'ok', nodes: ctvNodes, spatialFallback: false, mode: 'expr' });
                 } catch(ctvErr) {
                     // パース失敗時は通常フローにフォールバック
                 }
@@ -458,7 +458,7 @@ function getKfCurve() {
             });
         }
 
-        return JSON.stringify({ status: 'ok', nodes: nodes, spatialFallback: spatialFallback });
+        return JSON.stringify({ status: 'ok', nodes: nodes, spatialFallback: spatialFallback, mode: 'native' });
     } catch (e) {
         return JSON.stringify({ status: 'error', message: e.message + ' (line ' + e.line + ')' });
     }
@@ -558,6 +558,20 @@ function applyEase(argsJson) {
                 var eProp    = entry.prop;
                 var eIndices = entry.indices;
 
+                // expression 設定用の live 参照を事前に取得
+                // （disconnected 参照では prop.expression = が反映されない場合があるため）
+                var liveEProp = null;
+                {
+                    var leTimes = [];
+                    for (var lei = 0; lei < eIndices.length; lei++) {
+                        leTimes.push(eProp.keyTime(eIndices[lei]));
+                    }
+                    for (var lel = 1; lel <= comp.numLayers; lel++) {
+                        var leResult = _findLivePropByTimes(comp.layer(lel), leTimes);
+                        if (leResult) { liveEProp = leResult.prop; break; }
+                    }
+                }
+
                 if (mode === 'connect') {
                     // モードB: 中間KFを後ろから削除し、始点〜終点に適用
                     var firstIdx  = eIndices[0];
@@ -579,11 +593,11 @@ function applyEase(argsJson) {
                     if (nodes.length <= 2) {
                         appliedCount += _applySegmentEase(
                             eProp, newFirstIdx, newLastIdx,
-                            p1x, p1y, p2x, p2y, vDelta, tDelta, linearSpatial);
+                            p1x, p1y, p2x, p2y, vDelta, tDelta, linearSpatial, liveEProp);
                     } else {
                         appliedCount += _applyMultiNodeEase(
                             eProp, newFirstIdx, newLastIdx, nodes,
-                            timeFirst, vFirst, vLast, tDelta, vDelta, linearSpatial);
+                            timeFirst, vFirst, vLast, tDelta, vDelta, linearSpatial, liveEProp);
                     }
 
                 } else {
@@ -602,11 +616,11 @@ function applyEase(argsJson) {
                                 appliedCount += _applySegmentEase(
                                     eProp, k, k + 1,
                                     p1x, p1y, p2x, p2y,
-                                    vDeltaSeg, tDeltaSeg, linearSpatial);
+                                    vDeltaSeg, tDeltaSeg, linearSpatial, liveEProp);
                             } else {
                                 appliedCount += _applyMultiNodeEase(
                                     eProp, k, k + 1, nodes,
-                                    timeA, vA, vB, tDeltaSeg, vDeltaSeg, linearSpatial);
+                                    timeA, vA, vB, tDeltaSeg, vDeltaSeg, linearSpatial, liveEProp);
                             }
                         } catch (segErr) {
                             return JSON.stringify({ status: 'error', message: segErr.message + ' (line ' + segErr.line + ')' });
@@ -638,18 +652,34 @@ function applyEase(argsJson) {
     }
 }
 
-// ── 単一セグメントのイーズ適用（エクスプレッション方式） ─────
-// valueDelta / timeDelta は後方互換のため引数に残すが使用しない
+// ── 単一セグメントのイーズ適用（C案: BEZIER KF + Expression） ─────
+// KF を BEZIER 補間に設定してグラフエディタに視覚的ヒントを残し、
+// Expression が毎フレームの正確な値を上書き計算する。
+// liveProp: expression 設定に使う live 参照。disconnected 参照では expression が
+//           書き込まれない場合があるため applyEase 側で live 参照を渡す。
 function _applySegmentEase(prop, idxA, idxB, p1x, p1y, p2x, p2y,
-                            valueDelta, timeDelta, linearSpatial) {
-    // KF を HOLD 補間に設定（エクスプレッションがすべての補間を担うため値アンカーとして機能）
+                            valueDelta, timeDelta, linearSpatial, liveProp) {
     prop.setInterpolationTypeAtKey(idxA,
-        KeyframeInterpolationType.HOLD, KeyframeInterpolationType.HOLD);
+        KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);
     prop.setInterpolationTypeAtKey(idxB,
-        KeyframeInterpolationType.HOLD, KeyframeInterpolationType.HOLD);
+        KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);
+
+    // speed/influence で近似 ease を fallback として書き込む
+    // （Expression 無効時にもカーブ形状のヒントが残るようにする）
+    var ease = calcAeEase(p1x, p1y, p2x, p2y, valueDelta, timeDelta);
+    var defEase = new KeyframeEase(0, 33.33);
+    try {
+        prop.setTemporalEaseAtKey(idxA,
+            [defEase],
+            [new KeyframeEase(Math.abs(ease.outSpeed), ease.outInfluence)]);
+        prop.setTemporalEaseAtKey(idxB,
+            [new KeyframeEase(Math.abs(ease.inSpeed), ease.inInfluence)],
+            [defEase]);
+    } catch(eEase) {}
 
     var segsJson = '[[' + _r4(p1x) + ',' + _r4(p1y) + ',' + _r4(p2x) + ',' + _r4(p2y) + ']]';
-    prop.expression = _buildCtvExpr(segsJson);
+    var exprProp = liveProp || prop;
+    exprProp.expression = _buildCtvExpr(segsJson);
 
     if (linearSpatial) {
         try { prop.setSpatialTangentsAtKey(idxA, [0,0,0], [0,0,0]); } catch(e2) {}
@@ -658,14 +688,14 @@ function _applySegmentEase(prop, idxA, idxB, p1x, p1y, p2x, p2y,
     return 1;
 }
 
-// ── 多点ノードのイーズ適用（中間 KF を生成・エクスプレッション方式） ──
+// ── 多点ノードのイーズ適用（C案: BEZIER KF + Expression） ──
 function _applyMultiNodeEase(prop, idxA, idxB, nodes,
                               timeA, vA, vB,
-                              timeDeltaFull, valueDeltaFull, linearSpatial) {
+                              timeDeltaFull, valueDeltaFull, linearSpatial, liveProp) {
     var count = 0;
     var insertedIndices = [];
 
-    // 中間ノードを後ろから挿入（HOLD 補間で値アンカーとして挿入）
+    // 中間ノードを後ろから挿入（BEZIER 補間で近似 fallback として挿入）
     for (var ni = nodes.length - 2; ni >= 1; ni--) {
         var node = nodes[ni];
         var insertTime = timeA + node.anchor.x * timeDeltaFull;
@@ -683,7 +713,7 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
         var newIdx = prop.nearestKeyIndex(insertTime);
         prop.setValueAtKey(newIdx, insertValue);
         prop.setInterpolationTypeAtKey(newIdx,
-            KeyframeInterpolationType.HOLD, KeyframeInterpolationType.HOLD);
+            KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);
 
         if (linearSpatial) {
             try { prop.setSpatialTangentsAtKey(newIdx, [0,0,0], [0,0,0]); } catch(e2) {}
@@ -701,33 +731,67 @@ function _applyMultiNodeEase(prop, idxA, idxB, nodes,
     for (var m = 0; m < insertedIndices.length; m++) { allIndices.push(insertedIndices[m]); }
     allIndices.push(idxB + insertedIndices.length);
 
-    // 始点・終点も HOLD に設定
+    // 始点・終点も BEZIER に設定
     prop.setInterpolationTypeAtKey(allIndices[0],
-        KeyframeInterpolationType.HOLD, KeyframeInterpolationType.HOLD);
+        KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);
     prop.setInterpolationTypeAtKey(allIndices[allIndices.length - 1],
-        KeyframeInterpolationType.HOLD, KeyframeInterpolationType.HOLD);
+        KeyframeInterpolationType.BEZIER, KeyframeInterpolationType.BEZIER);
 
     // セグメントごとのローカルベジェパラメータを収集して s 配列を構築
+    var segsData = [];
     var segParts = [];
     for (var si = 0; si < allIndices.length - 1; si++) {
         var nodeA = nodes[si];
         var nodeB = nodes[si + 1];
+        var lP1x, lP1y, lP2x, lP2y;
         if (!nodeA.handleOut || !nodeB.handleIn) {
-            segParts.push('[0.42,0,0.58,1]');
-            continue;
+            lP1x = 0.42; lP1y = 0; lP2x = 0.58; lP2y = 1;
+        } else {
+            var ta = nodeA.anchor.x, tb = nodeB.anchor.x;
+            var va = nodeA.anchor.y, vb = nodeB.anchor.y;
+            var dtSeg = tb - ta;
+            var dvSeg = vb - va;
+            lP1x = dtSeg > 1e-6 ? (nodeA.handleOut.x - ta) / dtSeg : 0;
+            lP1y = Math.abs(dvSeg) > 1e-6 ? (nodeA.handleOut.y - va) / dvSeg : 0;
+            lP2x = dtSeg > 1e-6 ? (nodeB.handleIn.x  - ta) / dtSeg : 1;
+            lP2y = Math.abs(dvSeg) > 1e-6 ? (nodeB.handleIn.y  - va) / dvSeg : 1;
         }
-        var ta = nodeA.anchor.x, tb = nodeB.anchor.x;
-        var va = nodeA.anchor.y, vb = nodeB.anchor.y;
-        var dtSeg = tb - ta;
-        var dvSeg = vb - va;
-        var lP1x = dtSeg > 1e-6 ? (nodeA.handleOut.x - ta) / dtSeg : 0;
-        var lP1y = Math.abs(dvSeg) > 1e-6 ? (nodeA.handleOut.y - va) / dvSeg : 0;
-        var lP2x = dtSeg > 1e-6 ? (nodeB.handleIn.x  - ta) / dtSeg : 1;
-        var lP2y = Math.abs(dvSeg) > 1e-6 ? (nodeB.handleIn.y  - va) / dvSeg : 1;
+        segsData.push([lP1x, lP1y, lP2x, lP2y]);
         segParts.push('[' + _r4(lP1x) + ',' + _r4(lP1y) + ',' + _r4(lP2x) + ',' + _r4(lP2y) + ']');
     }
+
+    // speed/influence で近似 ease を各 KF に書き込む
+    // allIndices[ki] の inEase = segsData[ki-1] の inSpeed/Influence
+    //                  outEase = segsData[ki]   の outSpeed/Influence
+    var allEases = [];
+    for (var ei = 0; ei < segsData.length; ei++) {
+        var kA_e = allIndices[ei];
+        var kB_e = allIndices[ei + 1];
+        var tD_e = prop.keyTime(kB_e) - prop.keyTime(kA_e);
+        var vA_e = prop.keyValue(kA_e);
+        var vB_e = prop.keyValue(kB_e);
+        var vD_e = (vA_e instanceof Array) ? vB_e[0] - vA_e[0] : vB_e - vA_e;
+        var seg = segsData[ei];
+        var ease = calcAeEase(seg[0], seg[1], seg[2], seg[3], vD_e, tD_e);
+        allEases.push({
+            outSpeed: Math.abs(ease.outSpeed), outInf: ease.outInfluence,
+            inSpeed:  Math.abs(ease.inSpeed),  inInf:  ease.inInfluence
+        });
+    }
+    var defEase = new KeyframeEase(0, 33.33);
+    for (var ki = 0; ki < allIndices.length; ki++) {
+        var inE  = ki > 0
+            ? new KeyframeEase(allEases[ki - 1].inSpeed,  allEases[ki - 1].inInf)
+            : defEase;
+        var outE = ki < allIndices.length - 1
+            ? new KeyframeEase(allEases[ki].outSpeed, allEases[ki].outInf)
+            : defEase;
+        try { prop.setTemporalEaseAtKey(allIndices[ki], [inE], [outE]); } catch(eEase) {}
+    }
+
     var segsJson = '[' + segParts.join(',') + ']';
-    prop.expression = _buildCtvExpr(segsJson);
+    var exprPropM = liveProp || prop;
+    exprPropM.expression = _buildCtvExpr(segsJson);
 
     if (linearSpatial) {
         for (var li = 0; li < allIndices.length; li++) {

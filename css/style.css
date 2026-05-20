@@ -343,10 +343,42 @@ body {
   min-height: 16px;
 }
 
+#status-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 #versionText {
   font-size: 9px;
   color: #444444;
-  flex-shrink: 0;
+}
+
+/* ── モードバッジ ── */
+.mode-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.2px;
+  cursor: default;
+}
+
+.mode-badge.exact {
+  background: rgba(26, 156, 216, 0.12);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.mode-badge.exact:hover {
+  background: rgba(26, 156, 216, 0.22);
+}
+
+.mode-badge.native {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
 }
 
 #statusText {

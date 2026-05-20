@@ -2,6 +2,28 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.8.1] - Wed May 20 21:27:14 JST 2026
+### Fixed
+- `jsx/hostscript.jsx` `getKfCurve()`: KF 読み取り結果が全プロパティでズレる不具合を修正
+  - **原因①**: `typeof prop.getTemporalEaseAtKey !== 'function'` チェックが ExtendScript では live 参照でも `true` を返すため、常に `spatialFallback = true`（P1x/P2x を 1/3・2/3 固定のサンプリングパス）に落ちていた。`typeof` を廃止し `try-catch` のみで判定するよう変更。リニア KF だけ偶然一致して見えていた。
+  - **原因②**: `applyEase` が disconnected 参照（`comp.selectedProperties`）で `prop.expression =` を呼んでいたため CTV メタデータが live プロパティに書き込まれず、Apply→GET でも native 近似パスに落ちていた。`_findLivePropByTimes` で live 参照を事前取得し expression を live 側で設定するよう変更。
+- `CSXS/manifest.xml`: `ExtensionBundleVersion` / Extension `Version` が 0.7.0 のまま放置されていたため 0.8.1 に修正
+
+## [0.8.0] - Fri May 15 10:33:23 JST 2026
+### Changed（破壊的変更）
+- **KF 補間方式を HOLD → BEZIER に変更（C案採用）**
+  - `jsx/hostscript.jsx` `_applySegmentEase`: HOLD KF → **BEZIER KF + speed/influence 近似 fallback** に切替
+  - `jsx/hostscript.jsx` `_applyMultiNodeEase`: 同様。中間 KF 挿入時も BEZIER 補間で生成
+  - BEZIER KF にすることでグラフエディタに「視覚的ヒントとしてのカーブ形状」が残る
+  - Expression を削除しても近似カーブが残るため、`clearExpression()` 後の挙動が改善
+### Added
+- `jsx/hostscript.jsx`: `calcAeEase(p1x, p1y, p2x, p2y, valueDelta, timeDelta)` — cubic-bezier → speed/influence 変換ヘルパーを共通関数として抽出
+- `jsx/hostscript.jsx` `getKfCurve()`: 戻り値に `mode: 'expr' | 'native'` フィールドを追加（CTV コメントパース成功時は `'expr'`、フォールバック時は `'native'`）
+- `index.html` / `css/style.css` / `js/main.js`: **モードバッジ**を追加（Phase 3 実装）
+  - ステータスバー右端に `Exact`（Expression 有効）/ `≈ Native`（ネイティブ近似）を表示
+  - `Exact` バッジをクリックすると `clearExpression()` を呼び出す
+  - GET/Apply/Clear ボタン操作に連動してバッジが自動更新
+
 ## [0.7.0] - Sun May 03 17:41:57 JST 2026
 ### Changed（破壊的変更）
 - **エクスプレッションベース補完に全面移行（DESIGN.md Phase 1 + Phase 2 実装）**

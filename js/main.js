@@ -2,11 +2,11 @@
  * main.js
  * UI イベント連結・CSInterface ブリッジ・プリセット管理
  *
- * Version: 0.7.0
- * Date: Sun May 03 17:41:57 JST 2026
+ * Version: 0.8.1
+ * Date: Wed May 20 21:27:14 JST 2026
  */
 
-const VERSION = '0.7.0';
+const VERSION = '0.8.1';
 
 // ── プリセット定義 ─────────────────────────────────────────
 const PRESETS = [
@@ -59,6 +59,7 @@ const elCssWrap      = document.getElementById('css-value-wrap');
 const elGet          = document.getElementById('btnGet');
 const elApply        = document.getElementById('btnApply');
 const elClear        = document.getElementById('btnClear');
+const elModeBadge    = document.getElementById('modeBadge');
 const elStatus       = document.getElementById('statusText');
 const elPresets      = document.getElementById('preset-buttons');
 const elVersion      = document.getElementById('versionText');
@@ -179,6 +180,7 @@ elGet.addEventListener('click', () => {
             const res = JSON.parse(result);
             if (res.status === 'ok') {
                 editor.setNodes(res.nodes);
+                setMode(res.mode || null);
                 const msg = res.spatialFallback
                     ? 'KFから読み取りました（空間補完プロパティのため速度のみ近似）'
                     : 'KFからカーブを読み取りました (' + res.nodes.length + '点)';
@@ -211,6 +213,7 @@ elApply.addEventListener('click', () => {
         try {
             const res = JSON.parse(result);
             if (res.status === 'ok') {
+                setMode('expr');
                 setStatus(`${res.count} KF に適用しました`, 'success');
             } else if (res.status === 'cancel') {
                 setStatus('キャンセルしました');
@@ -224,7 +227,7 @@ elApply.addEventListener('click', () => {
 });
 
 // ── エクスプレッション クリア ─────────────────────────────
-elClear.addEventListener('click', () => {
+function execClearExpression() {
     setStatus('エクスプレッションをクリア中...', 'info');
     elClear.disabled = true;
     csInterface.evalScript('clearExpression()', (result) => {
@@ -232,6 +235,7 @@ elClear.addEventListener('click', () => {
         try {
             const res = JSON.parse(result);
             if (res.status === 'ok') {
+                setMode('native');
                 setStatus(`${res.count} プロパティのエクスプレッションをクリアしました（ネイティブ近似）`, 'success');
             } else {
                 setStatus(`エラー: ${res.message}`, 'error');
@@ -240,7 +244,31 @@ elClear.addEventListener('click', () => {
             setStatus('レスポンス解析エラー: ' + String(result).slice(0, 120), 'error');
         }
     });
+}
+
+elClear.addEventListener('click', execClearExpression);
+
+elModeBadge.addEventListener('click', () => {
+    if (elModeBadge.classList.contains('exact')) execClearExpression();
 });
+
+// ── モードバッジ ──────────────────────────────────────────
+function setMode(mode) {
+    if (!mode) {
+        elModeBadge.style.display = 'none';
+        return;
+    }
+    elModeBadge.style.display = '';
+    if (mode === 'expr') {
+        elModeBadge.textContent = 'Exact';
+        elModeBadge.className   = 'mode-badge exact';
+        elModeBadge.title       = 'Expression で正確なカーブを適用中 — クリックでクリア';
+    } else {
+        elModeBadge.textContent = '≈ Native';
+        elModeBadge.className   = 'mode-badge native';
+        elModeBadge.title       = 'ネイティブ補完（近似）';
+    }
+}
 
 // ── ステータス ────────────────────────────────────────────
 function setStatus(msg, type = '') {

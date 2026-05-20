@@ -54,12 +54,13 @@ AE の補完エンジンは内部的に **speed（単位/秒）と influence（%
 ### コンセプト
 
 ```
-旧: cubic-bezier → speed/influence → AE が補間   ← ここに全限界がある
-新: cubic-bezier → AE エクスプレッション → 値を直接計算
+旧（〜v0.6.x）: cubic-bezier → speed/influence → AE が補間   ← ここに全限界がある
+中（v0.7.x）  : cubic-bezier → HOLD KF + Expression → 値を直接計算
+新（v0.8.0〜）: cubic-bezier → BEZIER KF（近似 fallback）+ Expression → 値を直接計算
 ```
 
-AE はキーフレーム値を「アンカー」として保持するだけになる。
-補間はすべてエクスプレッションが行う。
+BEZIER KF に speed/influence の近似値を設定することで、expression を無効にしたときも
+「ほぼ正しい」フォールバック挙動を持たせる。Expression が有効な間はすべての補間を上書き。
 
 ### データフロー
 
@@ -67,15 +68,16 @@ AE はキーフレーム値を「アンカー」として保持するだけに�
 [UI カーブエディタ]
      ↓ nodes[]
 [applyEase（JSX）]
-  ├─ KF を HOLD 補間に設定（値のアンカー）
-  └─ prop.expression にエクスプレッション文字列を書き込む
+  ├─ KF を BEZIER 補間に設定
+  ├─ speed/influence で近似 ease をフォールバックとして書き込む
+  └─ prop.expression にエクスプレッション文字列を書き込む（上書き）
          ↑
     CTV メタデータ（bezier params）を埋め込み
 
 [getKfCurve（JSX）]
-  ├─ prop.expression の /*CTV:...*/ コメントをパース
+  ├─ prop.expression の /*CTV:...*/ コメントをパース → mode: 'expr'
   └─ 完全一致の nodes[] を返す（近似なし）
-         ↓ フォールバック（エクスプレッションがない場合）
+         ↓ フォールバック（エクスプレッションがない場合）→ mode: 'native'
     valueAtTime サンプリング近似（現行ロジック）
 ```
 
@@ -177,27 +179,37 @@ if (m) {
 
 ---
 
-## 5. キーフレームの扱い
+## 5. キーフレームの扱い（C案: BEZIER KF + Expression）
 
-### Hold 補間を使う理由
+### v0.8.0 以降の方針
 
-| | Hold KF | Linear KF | Bezier KF |
-|---|---|---|---|
-| 値が正確か | ✅ KF 時刻に正確な値 | ✅ | ✅ |
-| エクスプレッション削除後 | アンカー値がそのまま残る | 線形補間（ほぼ正しい） | 近似補間（形が変わる） |
-| AE グラフ表示 | 階段状（正直） | 誤解を招く直線 | 誤解を招く曲線 |
-| 設計の意図 | 「エクスプレッションが制御する」を明示 | 曖昧 | 曖昧 |
+| | Hold KF（旧 v0.7.x） | Bezier KF（v0.8.0〜） |
+|---|---|---|
+| グラフエディタ表示 | 階段状（正直だが直感に反する） | **近似カーブ形状が見える（視覚的ヒント）** |
+| Expression 削除後 | アンカー値のみ残る（カーブ消滅） | **近似 speed/influence カーブが残る** |
+| 設計意図の伝わりやすさ | 「Expressionが制御」は明確だが混乱しやすい | バッジ UI で明示するため問題ない |
 
-**Hold が最も誠実な表現。**
-AE のグラフエディタで見ると「階段」に見えるが、これは「エクスプレッションが担当している」という正確な状態表示。
+**BEZIER KF を採用する理由:**
+- グラフエディタに「大まかなカーブ形状」が視覚的ヒントとして残る
+- Expression を削除しても（Clear ボタン）近似補間として機能し続ける
+- 「触っても変わらない」混乱は、パネルのモードバッジ（🔒 Exact / ≈ Native）で明示して対処
+
+**トレードオフ（許容済み）:**
+KF ease をグラフエディタで手動調整しても Expression が上書きするため「触っても変わらない」。
+これは UI バッジで常にモードを明示することで解決する。
+
+### 近似 ease の書き込み
+
+適用時、Expression に加えて speed/influence の近似値も各 KF に書き込む。
+これにより Expression を削除した際に完全な無変化ではなく、意図したカーブに近い状態が残る。
 
 ### 「ネイティブに戻す（Clear Expression）」ボタン
 
 エクスプレッションを外し、可能な限り native ease に変換して戻す：
 
 1. `prop.expression = ''` で解除
-2. Bezier 補間に変更
-3. 現行の speed/influence 変換ロジックで近似的に書き込む
+2. KF は既に BEZIER なので補間タイプ変更不要（そのまま近似 ease が残る）
+3. `/*CTV:*/` メタデータからセグメントパラメータを再読みし speed/influence を改めて書き直す
 
 **注意**: オーバーシュート系カーブは native ease で正確には再現できない。
 ユーザーへの告知が必要：「Overshoot/Anticipate はネイティブモードで近似になります」。
@@ -222,39 +234,39 @@ AE のグラフエディタで見ると「階段」に見えるが、これは�
 |---|---|
 | プロパティにエクスプレッションが付く | 「AE ネイティブモード」を UI に用意 |
 | AE グラフエディタで直接編集不可 | このツールが編集UIを提供するので問題ない |
-| エクスプレッション削除で Hold 階段になる | Clear ボタンで近似 native ease に変換 |
+| KF ease をグラフ編集しても Expression が上書き | モードバッジ（🔒 Exact / ≈ Native）で明示 |
+| エクスプレッション削除後は近似カーブ（完全ではない） | Clear ボタンで近似 native ease に変換 |
 | 他ツール（Flow 等）との共存 | 先に Clear してから他ツールを使う |
 
 ---
 
 ## 7. 実装計画
 
-### Phase 1: 適用側の刷新（コア）
+### Phase 1: 適用側の刷新（コア）✅ 完了（v0.7.0〜v0.8.0）
 
 **`jsx/hostscript.jsx`**
-- `_applySegmentEase` → Hold KF 設定 + エクスプレッション書き込みに全面置換
-- `_applyMultiNodeEase` → 同様（`s` 配列にセグメントごとの params を格納）
-- `_clearExpression` 関数を新規追加
-- エクスプレッション文字列テンプレートを定数として定義
+- ✅ `_applySegmentEase` → BEZIER KF + speed/influence fallback + Expression 書き込み（v0.8.0 C案）
+- ✅ `_applyMultiNodeEase` → 同様（`segsData` 配列にセグメントごとの params を格納、per-KF ease 設定）
+- ✅ `clearExpression` 関数実装済み
+- ✅ `_buildCtvExpr` でエクスプレッション文字列テンプレートを生成
 
 **`index.html`**
-- 「エクスプレッションをクリア」ボタン追加
-- （将来）「ネイティブモード」トグル追加
+- ✅ 「エクスプレッションをクリア」ボタン追加済み
 
 **`js/main.js`**
-- Clear ボタンのハンドラ追加
+- ✅ Clear ボタンのハンドラ追加済み
 
-### Phase 2: GET 側の刷新
+### Phase 2: GET 側の刷新 ✅ 完了（v0.7.0）
 
 **`jsx/hostscript.jsx` の `getKfCurve`**
-- `/*CTV:...*/` コメントパースを優先ルートに
-- パース失敗時のみ現行 valueAtTime フォールバックを実行
+- ✅ `/*CTV:...*/` コメントパースを優先ルートに実装
+- ✅ パース失敗時は valueAtTime サンプリングフォールバックを実行
 
-### Phase 3: ネイティブモード（オプション）
+### Phase 3: モードバッジ UI ✅ 完了（v0.8.0）
 
-- UI にトグルを追加
-- ON: エクスプレッション（デフォルト、理想）
-- OFF: speed/influence（互換性重視、現行相当）
+- ✅ UI にモードバッジを追加: `Exact`（Expression 有効）/ `≈ Native`（Expression なし）
+- ✅ GET 時に `mode: 'expr' | 'native'` を返すよう拡張
+- ✅ バッジクリックで Clear Expression を呼び出せるようにする（Exact バッジのみ反応）
 
 ---
 
@@ -286,4 +298,4 @@ JSX 側は ES3 で文字列を組み立て、エクスプレッション本体�
 
 ---
 
-*最終更新: Sun May 03 14:41:07 JST 2026*
+*最終更新: Fri May 15 10:33:23 JST 2026*

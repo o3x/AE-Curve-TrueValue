@@ -13,17 +13,23 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 - **ブーメラン効果** → 空間補完を Linear に自動設定するオプション（暫定）→ 将来はエクスプレッション方式で根絶
 - **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割（暫定）→ 将来はエクスプレッション方式で不要に
 
-### アーキテクチャ（v0.7.0〜）
+### アーキテクチャ（v0.8.0〜）
 
-v0.7.0 より **エクスプレッションベース補完**に移行済み（DESIGN.md Phase 1 + Phase 2 実装完了）。詳細は **`DESIGN.md`** を参照。
+v0.7.0 よりエクスプレッションベース補完に移行、v0.8.0 で **C案（BEZIER KF + Expression）** に切替済み。詳細は **`DESIGN.md`** を参照。
 
 ```
 旧（〜v0.6.x）: cubic-bezier → speed/influence → AE が補間  ← オーバーシュート不可・round-trip 不可
-現行（v0.7.0〜）: cubic-bezier → prop.expression（Newton 法ソルバー） → AE は値を受け取るだけ
+旧（v0.7.x）  : cubic-bezier → HOLD KF + prop.expression（Newton 法ソルバー）
+現行（v0.8.0〜）: cubic-bezier → BEZIER KF（近似 fallback）+ prop.expression → AE は値を受け取るだけ
 ```
 
+- BEZIER KF に speed/influence の近似値を書き込み、グラフエディタに視覚的ヒントを残す
+- Expression が毎フレームの正確な値を上書き計算（Newton 法 cubic-bezier ソルバー）
 - `/*CTV:[[p1x,p1y,p2x,p2y], ...]*/` コメントを先頭に埋め込み、GET 時に完全一致で復元
-- `clearExpression()` でネイティブ補完（speed/influence 近似）に戻せる
+- `clearExpression()` で Expression を削除し、BEZIER KF の近似 ease のみで動作するネイティブモードに戻せる
+- **モードバッジ実装済み（v0.8.0）**: `setMode('expr'|'native')` がステータスバー右端のバッジを切替。`Exact` バッジクリックで `clearExpression()` を呼び出し。GET 時に `mode` フィールドで返すことで自動反映
+
+> **未完了タスク**: `CHANGELOG.md` に v0.8.0 エントリがない。`[0.7.0]` の上に C案への切替・モードバッジ・clearExpression の追加内容を記録すること。
 
 ## Tech Stack
 
