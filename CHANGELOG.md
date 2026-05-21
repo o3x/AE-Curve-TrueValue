@@ -2,6 +2,12 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.8.2] - Thu May 21 10:43:54 JST 2026
+### Fixed
+- `jsx/hostscript.jsx` `getKfCurve()`: Scale など多次元プロパティの GET で P1y/P2y が正しく復元されない不具合を修正
+  - **原因**: 速度からの逆算（`segVin` / `segVout`）にユークリッド距離（`segDists`）を使用していたが、Apply 側の `calcAeEase` は第1次元の値差（`vB[0] - vA[0]`）を使っていたため不整合。2次元均一変化では `1/√2` 倍のズレが生じていた。
+  - **修正**: `segVin` / `segVout` を第1次元の値差に統一し、Apply ↔ GET の往復が正確になるよう修正。1D プロパティ（不透明度・回転等）は変更なし（既に正確）。
+
 ## [0.8.1] - Wed May 20 21:27:14 JST 2026
 ### Fixed
 - `jsx/hostscript.jsx` `getKfCurve()`: KF 読み取り結果が全プロパティでズレる不具合を修正
