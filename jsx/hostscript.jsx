@@ -59,7 +59,15 @@ if (typeof JSON.stringify !== 'function') {
 }
 if (typeof JSON.parse !== 'function') {
     JSON.parse = function (str) {
-        return eval('(' + str + ')');
+        var text = String(str);
+        // json2.js と同等の安全性検査: JSON として妥当なトークンのみ許可
+        if (/^[\],:{}\s]*$/.test(
+                text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '@')
+                    .replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']')
+                    .replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
+            return eval('(' + text + ')');
+        }
+        throw new Error('JSON.parse: 不正なJSON文字列です');
     };
 }
 
