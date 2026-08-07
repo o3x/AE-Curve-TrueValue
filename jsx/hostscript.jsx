@@ -448,8 +448,10 @@ function _showModeDialog() {
     dlg.spacing      = 8;
     dlg.margins      = [15, 15, 15, 15];
 
-    dlg.add('statictext', undefined,
-        '3つ以上のキーフレームが選択されています。\n適用方法を選択してください。');
+    var msgText = dlg.add('statictext', undefined,
+        '3つ以上のキーフレームが選択されています。\n適用方法を選択してください。',
+        { multiline: true });
+    msgText.preferredSize.width = 360;
 
     var btnA = dlg.add('button', undefined, 'A  各セグメントに適用（各区間に現在のカーブを適用）');
     var btnB = dlg.add('button', undefined, 'B  全体を繋ぎ直す（中間KFを削除し始点〜終点に適用）');
@@ -522,8 +524,9 @@ function applyEase(argsJson) {
             }
         }
 
-        var p1x = nodes[0].handleOut.x,           p1y = nodes[0].handleOut.y;
-        var p2x = nodes[nodes.length-1].handleIn.x, p2y = nodes[nodes.length-1].handleIn.y;
+        var hOut = nodes[0].handleOut || { x: 0.42, y: 0 };
+        var hIn  = nodes[nodes.length-1].handleIn || { x: 0.58, y: 1 };
+        var p1x = hOut.x, p1y = hOut.y, p2x = hIn.x, p2y = hIn.y;
 
         var appliedCount = 0;
         app.beginUndoGroup('Curve-TrueValue: イーズ適用');
