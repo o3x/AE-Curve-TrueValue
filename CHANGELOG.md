@@ -2,6 +2,10 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
+## [0.8.4] - 作業中（refactor/2026-07、日付はマージ時に確定）
+### Removed
+- `jsx/hostscript.jsx`: `getSelectedKfData()` を削除（未使用・`getKfCurve()` に置換済み）
+
 ## [0.8.2] - Thu May 21 10:43:54 JST 2026
 ### Fixed
 - `jsx/hostscript.jsx` `getKfCurve()`: Scale など多次元プロパティの GET で P1y/P2y が正しく復元されない不具合を修正

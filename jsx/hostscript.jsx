@@ -6,7 +6,6 @@
  * Date: Sat May 23 11:01:07 JST 2026
  *
  * 関数一覧:
- *   getSelectedKfData()  → JSON            （旧・後方互換用）
  *   getKfCurve()         → JSON            選択KF全体のカーブをP1/P2として取得
  *   applyEase(argsJson)  → JSON
  *     argsJson: { nodes, linearSpatial, splitDimensions }
@@ -106,48 +105,6 @@ function _buildCtvExpr(segsJson) {
 
 // 数値を小数点4桁に丸める（エクスプレッション埋め込み用）
 function _r4(v) { return Math.round(v * 10000) / 10000; }
-
-// ── 選択 KF データ取得 ─────────────────────────────────────
-function getSelectedKfData() {
-    try {
-        var comp = app.project.activeItem;
-        if (!comp || !(comp instanceof CompItem)) {
-            return JSON.stringify({ status: 'error', message: 'コンポジションを選択してください' });
-        }
-        var result = [];
-        var props = comp.selectedProperties;
-        for (var i = 0; i < props.length; i++) {
-            var prop = props[i];
-            if (prop.numKeys === 0) continue;
-            if (prop.propertyValueType === PropertyValueType.NO_VALUE) continue;
-            if (typeof prop.getTemporalEaseAtKey !== 'function') continue;
-            for (var k = 1; k <= prop.numKeys; k++) {
-                if (!prop.keySelected(k) || k >= prop.numKeys) continue;
-                var timeA = prop.keyTime(k), timeB = prop.keyTime(k + 1);
-                var vA = prop.keyValue(k),   vB = prop.keyValue(k + 1);
-                var valueDelta = (vA instanceof Array) ? vB[0] - vA[0] : vB - vA;
-                var timeDelta  = timeB - timeA;
-                var eases = prop.getTemporalEaseAtKey(k);
-                var outEase   = eases[1][0];
-                var inEaseNxt = prop.getTemporalEaseAtKey(k + 1)[0][0];
-                var scale = Math.abs(valueDelta) > 1e-6 && timeDelta > 1e-6
-                    ? timeDelta / valueDelta : 0;
-                var p1x = outEase.influence / 100;
-                var p1y = p1x > 0 ? outEase.speed * scale * p1x : 0;
-                var p2x = 1 - inEaseNxt.influence / 100;
-                var p2y = (1 - p2x) > 0 ? 1 - inEaseNxt.speed * scale * (1 - p2x) : 1;
-                result.push({ p1x: p1x, p1y: p1y, p2x: p2x, p2y: p2y,
-                               valueDelta: valueDelta, timeDelta: timeDelta });
-            }
-        }
-        if (result.length === 0) {
-            return JSON.stringify({ status: 'error', message: 'キーフレームが選択されていません' });
-        }
-        return JSON.stringify({ status: 'ok', keyframes: result });
-    } catch (e) {
-        return JSON.stringify({ status: 'error', message: e.message + ' (line ' + e.line + ')' });
-    }
-}
 
 // ── KF時刻でliveプロパティを検索 ────────────────────────────
 /**
