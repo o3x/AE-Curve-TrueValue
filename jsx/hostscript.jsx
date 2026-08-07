@@ -109,9 +109,13 @@ function _r4(v) { return Math.round(v * 10000) / 10000; }
 // ── KF時刻でliveプロパティを検索 ────────────────────────────
 /**
  * propGroup を再帰的に辿り、指定した時刻群すべてにKFを持つ leaf property を返す。
+ * matchName を指定すると、その matchName に一致する leaf property のみを対象にする
+ * （同時刻にKFを持つ複数プロパティが存在する場合の取り違え防止。省略時は従来動作）。
+ * 既知の限界: 異なるレイヤーに同じ matchName・同時刻の KF がある場合、両者の区別は
+ * できない（comp.selectedProperties からレイヤー特定情報が取れないため）。
  * 返り値: { prop, indices:[] } または null
  */
-function _findLivePropByTimes(propGroup, times) {
+function _findLivePropByTimes(propGroup, times, matchName) {
     var count = 0;
     try { count = propGroup.numProperties; } catch (e) { return null; }
     for (var p = 1; p <= count; p++) {
@@ -119,10 +123,11 @@ function _findLivePropByTimes(propGroup, times) {
         try { prop = propGroup.property(p); } catch (e) { continue; }
         if (!prop) continue;
         if (prop.propertyType !== PropertyType.PROPERTY) {
-            var sub = _findLivePropByTimes(prop, times);
+            var sub = _findLivePropByTimes(prop, times, matchName);
             if (sub) return sub;
             continue;
         }
+        if (matchName && prop.matchName !== matchName) continue;
         var numKeys;
         try { numKeys = prop.numKeys; } catch (e) { continue; }
         if (numKeys < times.length) continue;
@@ -162,6 +167,7 @@ function getKfCurve() {
 
         // Step 1: comp.selectedProperties（disconnected 参照）から選択KF時刻を取得
         var kfTimes = null;
+        var kfMatchName = null;
         var selProps = comp.selectedProperties;
         for (var si = 0; si < selProps.length; si++) {
             var sp = selProps[si];
@@ -179,6 +185,7 @@ function getKfCurve() {
             }
             if (!timesOk) continue;
             kfTimes = times;
+            kfMatchName = sp.matchName;
             break;
         }
         if (!kfTimes) {
@@ -186,9 +193,10 @@ function getKfCurve() {
         }
 
         // Step 2: レイヤー階層を辿って getTemporalEaseAtKey が動く live property を取得
+        // matchName で絞り込み、同時刻にKFを持つ他プロパティとの取り違えを防ぐ
         var liveResult = null;
         for (var l = 1; l <= comp.numLayers; l++) {
-            liveResult = _findLivePropByTimes(comp.layer(l), kfTimes);
+            liveResult = _findLivePropByTimes(comp.layer(l), kfTimes, kfMatchName);
             if (liveResult) break;
         }
         if (!liveResult) {
@@ -527,7 +535,7 @@ function applyEase(argsJson) {
                         leTimes.push(eProp.keyTime(eIndices[lei]));
                     }
                     for (var lel = 1; lel <= comp.numLayers; lel++) {
-                        var leResult = _findLivePropByTimes(comp.layer(lel), leTimes);
+                        var leResult = _findLivePropByTimes(comp.layer(lel), leTimes, eProp.matchName);
                         if (leResult) { liveEProp = leResult.prop; break; }
                     }
                 }

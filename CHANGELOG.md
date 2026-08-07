@@ -3,6 +3,11 @@
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
 ## [0.8.4] - 作業中（refactor/2026-07、日付はマージ時に確定）
+### Fixed
+- `jsx/hostscript.jsx` `_findLivePropByTimes()`: 複数プロパティ（例: Position と Scale）が同時刻に KF を持つ場合、live 参照の解決が最初に見つかったプロパティに固定され、2つ目以降のプロパティのエクスプレッションが誤ったプロパティへ書き込まれる不具合を修正
+  - `matchName` による絞り込みを追加（`getKfCurve`・`applyEase` の呼び出し箇所も対応）
+  - **Windows 実機確認待ち**: 同一レイヤーの Position と Scale に同時刻の KF を作り両方選択して Apply → それぞれのプロパティに自分のエクスプレッションが付くこと
+  - 既知の限界: 異なるレイヤーに同じ matchName・同時刻の KF がある場合の曖昧さは残る（未解決、コード内コメントに記載）
 ### Removed
 - `jsx/hostscript.jsx`: `getSelectedKfData()` を削除（未使用・`getKfCurve()` に置換済み）
 
