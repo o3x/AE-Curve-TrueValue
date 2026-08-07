@@ -2,8 +2,8 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.8.3
- * Date: Sat May 23 11:01:07 JST 2026
+ * Version: 0.8.4
+ * Date: Fri Aug 07 10:34:53 JST 2026
  *
  * 関数一覧:
  *   getKfCurve()         → JSON            選択KF全体のカーブをP1/P2として取得

@@ -2,7 +2,7 @@
 
 このプロジェクトのすべての重要な変更はこのファイルに記録されます。
 
-## [0.8.4] - 作業中（refactor/2026-07、日付はマージ時に確定）
+## [0.8.4] - Fri Aug 07 10:34:53 JST 2026
 ### UI改善
 - `jsx/hostscript.jsx` `_showModeDialog()`: 説明文の `\n` がScriptUIのstatictextで改行表示されず1行に潰れていた問題を修正（`multiline: true`）
 - `jsx/hostscript.jsx` `applyEase()`: `nodes[0].handleOut` / `nodes[nodes.length-1].handleIn` にnullガードを追加（`_applyMultiNodeEase`と同じEase In Outのfallback値0.42/0/0.58/1で防御を揃える。現行のパネル側実装ではnullは来ないため正常系の挙動は不変）
