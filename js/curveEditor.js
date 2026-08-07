@@ -13,8 +13,8 @@
  *   Alt+クリック      中間ノードの smooth/corner 切替
  *   Delete/Backspace  選択中の中間ノードを削除
  *
- * Version: 0.5.2
- * Date: Thu Apr 30 12:03:27 JST 2026
+ * Version: 0.5.5
+ * Date: Sat May 23 23:24:21 JST 2026
  */
 
 class CurveEditor {
@@ -34,6 +34,8 @@ class CurveEditor {
 
         this._drag     = null;   // { type:'anchor'|'handleIn'|'handleOut', idx:number }
         this._selected = null;   // 選択中ノードインデックス
+        this._yMin     = 0;
+        this._yMax     = 1;
 
         this._setupResize();
         this._bindEvents();
@@ -64,13 +66,26 @@ class CurveEditor {
     get _pad()  { return Math.max(16, Math.floor(this.size * 0.085)); }
 
     toCanvas(bx, by) {
-        const inner = this.size - this._pad * 2;
-        return { cx: this._pad + bx * inner, cy: this._pad + (1 - by) * inner };
+        const inner  = this.size - this._pad * 2;
+        const yRange = this._yMax - this._yMin;
+        return {
+            cx: this._pad + bx * inner,
+            cy: this._pad + (1 - (by - this._yMin) / yRange) * inner,
+        };
     }
 
     toBezier(cx, cy) {
-        const inner = this.size - this._pad * 2;
-        return { x: (cx - this._pad) / inner, y: 1 - (cy - this._pad) / inner };
+        const inner  = this.size - this._pad * 2;
+        const yRange = this._yMax - this._yMin;
+        return {
+            x: (cx - this._pad) / inner,
+            y: this._yMin + (1 - (cy - this._pad) / inner) * yRange,
+        };
+    }
+
+    _computeYRange(nodes) {
+        this._yMin = 0;
+        this._yMax = 1;
     }
 
     // ── セグメント評価 ─────────────────────────────────────
@@ -136,13 +151,17 @@ class CurveEditor {
     _drawGrid() {
         const { ctx, size, _pad: p } = this;
         const inner = size - p * 2;
+
+        // 背景グリッド（4分割）
         ctx.strokeStyle = '#282828';
         ctx.lineWidth = 0.5;
         for (let i = 0; i <= 4; i++) {
-            const v = p + i / 4 * inner;
-            ctx.beginPath(); ctx.moveTo(v, p); ctx.lineTo(v, p + inner); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(p, v); ctx.lineTo(p + inner, v); ctx.stroke();
+            const vx = p + i / 4 * inner;
+            ctx.beginPath(); ctx.moveTo(vx, p); ctx.lineTo(vx, p + inner); ctx.stroke();
+            const vy = p + i / 4 * inner;
+            ctx.beginPath(); ctx.moveTo(p, vy); ctx.lineTo(p + inner, vy); ctx.stroke();
         }
+
     }
 
     _drawDiagonal() {
@@ -336,13 +355,13 @@ class CurveEditor {
             const dx   = newX - node.anchor.x;
             const dy   = bz.y - node.anchor.y;
             node.anchor.x += dx;
-            node.anchor.y  = Math.max(-0.5, Math.min(1.5, bz.y));
+            node.anchor.y  = Math.max(0, Math.min(1, bz.y));
             if (node.handleIn)  { node.handleIn.x  += dx; node.handleIn.y  += dy; }
             if (node.handleOut) { node.handleOut.x += dx; node.handleOut.y += dy; }
 
         } else if (type === 'handleOut' && node.handleOut) {
             const ox = Math.max(node.anchor.x, Math.min(nextAnchorX, bz.x));
-            const oy = Math.max(-0.5, Math.min(1.5, bz.y));
+            const oy = Math.max(0, Math.min(1, bz.y));
             node.handleOut.x = ox;
             node.handleOut.y = oy;
             if (!e.ctrlKey && node.handleIn) {
@@ -351,7 +370,7 @@ class CurveEditor {
                 const vx = ox - node.anchor.x;
                 const vy = oy - node.anchor.y;
                 node.handleIn.x = Math.max(prevAnchorX, node.anchor.x - vx);
-                node.handleIn.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+                node.handleIn.y = Math.max(0, Math.min(1, node.anchor.y - vy));
             } else if (node.handleIn) {
                 // Ctrl あり → コーナー: 独立
                 node.smooth = false;
@@ -359,7 +378,7 @@ class CurveEditor {
 
         } else if (type === 'handleIn' && node.handleIn) {
             const ix = Math.max(prevAnchorX, Math.min(node.anchor.x, bz.x));
-            const iy = Math.max(-0.5, Math.min(1.5, bz.y));
+            const iy = Math.max(0, Math.min(1, bz.y));
             node.handleIn.x = ix;
             node.handleIn.y = iy;
             if (!e.ctrlKey && node.handleOut) {
@@ -368,7 +387,7 @@ class CurveEditor {
                 const vx = ix - node.anchor.x;
                 const vy = iy - node.anchor.y;
                 node.handleOut.x = Math.min(nextAnchorX, node.anchor.x - vx);
-                node.handleOut.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+                node.handleOut.y = Math.max(0, Math.min(1, node.anchor.y - vy));
             } else if (node.handleOut) {
                 // Ctrl あり → コーナー: 独立
                 node.smooth = false;
@@ -424,24 +443,24 @@ class CurveEditor {
             if (node.handleOut) node.handleOut.x = Math.min(nextAnchorX, Math.max(newX, node.handleOut.x + dx));
         }
         if (anchorY !== undefined && !isNaN(anchorY)) {
-            const newY = Math.max(-0.5, Math.min(1.5, anchorY));
+            const newY = Math.max(0, Math.min(1, anchorY));
             const dy   = newY - node.anchor.y;
             node.anchor.y = newY;
             if (node.handleIn)  node.handleIn.y  += dy;
             if (node.handleOut) node.handleOut.y += dy;
         }
         if (outY !== undefined && !isNaN(outY) && node.handleOut) {
-            node.handleOut.y = Math.max(-0.5, Math.min(1.5, outY));
+            node.handleOut.y = Math.max(0, Math.min(1, outY));
             if (node.smooth && node.handleIn) {
                 const vy = node.handleOut.y - node.anchor.y;
-                node.handleIn.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+                node.handleIn.y = Math.max(0, Math.min(1, node.anchor.y - vy));
             }
         }
         if (inY !== undefined && !isNaN(inY) && node.handleIn) {
-            node.handleIn.y = Math.max(-0.5, Math.min(1.5, inY));
+            node.handleIn.y = Math.max(0, Math.min(1, inY));
             if (node.smooth && node.handleOut) {
                 const vy = node.handleIn.y - node.anchor.y;
-                node.handleOut.y = Math.max(-0.5, Math.min(1.5, node.anchor.y - vy));
+                node.handleOut.y = Math.max(0, Math.min(1, node.anchor.y - vy));
             }
         }
         this.draw();
@@ -451,6 +470,7 @@ class CurveEditor {
     setNodes(nodes) {
         this.nodes     = nodes;
         this._selected = null;
+        this._computeYRange(nodes);
         this.draw();
         this._notifyChange();
     }
@@ -461,6 +481,7 @@ class CurveEditor {
             { anchor:{x:1,y:1}, handleIn:{x:p2x,y:p2y},   handleOut:null,          smooth:true },
         ];
         this._selected = null;
+        this._computeYRange(this.nodes);
         this.draw();
         this._notifyChange();
     }

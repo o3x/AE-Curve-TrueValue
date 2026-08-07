@@ -2,8 +2,8 @@
  * hostscript.jsx
  * AE ExtendScript ホストスクリプト（ES3 必須）
  *
- * Version: 0.8.2
- * Date: Thu May 21 10:43:54 JST 2026
+ * Version: 0.8.3
+ * Date: Sat May 23 11:01:07 JST 2026
  *
  * 関数一覧:
  *   getSelectedKfData()  → JSON            （旧・後方互換用）
@@ -413,9 +413,9 @@ function getKfCurve() {
                     lP2y = segBezier[ni - 1].p2y;
                 } else {
                     var segTin = prop.keyTime(indices[ni]) - prop.keyTime(indices[ni-1]);
-                    var svIn0 = prop.keyValue(indices[ni-1]);
-                    var svIn1 = prop.keyValue(indices[ni]);
-                    var segVin = isMultiDim ? svIn1[0] - svIn0[0] : svIn1 - svIn0;
+                    // isMultiDim の場合は segDists（ユークリッド距離）を使う。
+                    // X 成分差分のみでは Y/Z 主体の動きで誤差が生じるため。
+                    var segVin = segDists[ni];
                     var iEase = eases[ni].inEase;
                     lP2x = 1 - iEase.influence / 100;
                     var scIn = Math.abs(segVin) > 1e-6 ? segTin / Math.abs(segVin) : 0;
@@ -439,9 +439,8 @@ function getKfCurve() {
                     lP1y = segBezier[ni].p1y;
                 } else {
                     var segTout = prop.keyTime(indices[ni+1]) - prop.keyTime(indices[ni]);
-                    var svOut0 = prop.keyValue(indices[ni]);
-                    var svOut1 = prop.keyValue(indices[ni+1]);
-                    var segVout = isMultiDim ? svOut1[0] - svOut0[0] : svOut1 - svOut0;
+                    // isMultiDim の場合は segDists（ユークリッド距離）を使う。
+                    var segVout = segDists[ni + 1];
                     var oEase = eases[ni].outEase;
                     lP1x = oEase.influence / 100;
                     var scOut = Math.abs(segVout) > 1e-6 ? segTout / Math.abs(segVout) : 0;

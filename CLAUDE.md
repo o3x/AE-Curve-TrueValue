@@ -13,9 +13,9 @@ After Effects の「速度グラフ中心・次元非分離」という設計上
 - **ブーメラン効果** → 空間補完を Linear に自動設定するオプション（暫定）→ 将来はエクスプレッション方式で根絶
 - **次元の不分離** → 適用時に `dimensionsSeparated = true` で自動分割（暫定）→ 将来はエクスプレッション方式で不要に
 
-### アーキテクチャ（v0.8.0〜）
+### アーキテクチャ進化
 
-v0.7.0 よりエクスプレッションベース補完に移行、v0.8.0 で **C案（BEZIER KF + Expression）** に切替済み。詳細は **`DESIGN.md`** を参照。
+v0.7.0 よりエクスプレッションベース補完に移行、v0.8.0 で **C案（BEZIER KF + Expression）** に切替済み。設計思想の詳細は **`DESIGN.md`** を参照。
 
 ```
 旧（〜v0.6.x）: cubic-bezier → speed/influence → AE が補間  ← オーバーシュート不可・round-trip 不可
@@ -27,9 +27,7 @@ v0.7.0 よりエクスプレッションベース補完に移行、v0.8.0 で **
 - Expression が毎フレームの正確な値を上書き計算（Newton 法 cubic-bezier ソルバー）
 - `/*CTV:[[p1x,p1y,p2x,p2y], ...]*/` コメントを先頭に埋め込み、GET 時に完全一致で復元
 - `clearExpression()` で Expression を削除し、BEZIER KF の近似 ease のみで動作するネイティブモードに戻せる
-- **モードバッジ実装済み（v0.8.0）**: `setMode('expr'|'native')` がステータスバー右端のバッジを切替。`Exact` バッジクリックで `clearExpression()` を呼び出し。GET 時に `mode` フィールドで返すことで自動反映
-
-> **未完了タスク**: `CHANGELOG.md` に v0.8.0 エントリがない。`[0.7.0]` の上に C案への切替・モードバッジ・clearExpression の追加内容を記録すること。
+- **モードバッジ**: `setMode('expr'|'native')` がステータスバー右端のバッジを切替。`Exact` バッジクリックで `clearExpression()` を呼び出し。GET 時に `mode` フィールドで返すことで自動反映
 
 ## Tech Stack
 
@@ -38,7 +36,7 @@ v0.7.0 よりエクスプレッションベース補完に移行、v0.8.0 で **
 | パネル UI | HTML5 / CSS3 / ES2020+ | CEP 内蔵 Chromium で動作 |
 | AE API アクセス | ExtendScript (.jsx) | **ES3 必須**（`var` のみ） |
 | AE ↔ パネル通信 | `csInterface.evalScript()` | JSON 文字列でやり取り |
-| AE エクスプレッション（計画中） | JS 文字列として JSX から `prop.expression` に書き込む | **ES2018 使用可**（`const`/`let`/アロー関数 OK） |
+| AE エクスプレッション | JS 文字列として JSX から `prop.expression` に書き込む | **ES2018 使用可**（`const`/`let`/アロー関数 OK） |
 
 ビルドシステムなし。ファイルを直接 CEP がロードする。
 
@@ -107,7 +105,7 @@ nodes = [
 | **Ctrl**+ハンドルをドラッグ | **コーナーモード**（独立移動）、`node.smooth = false` に更新 |
 | Delete / Backspace | 選択中の中間ノードを削除 |
 
-- Alt+クリックによる smooth/corner トグルは廃止済み（v0.5.2）
+- Alt+クリックによる smooth/corner トグルは廃止済み（v0.5.2）。README の記述は古いので注意。
 - 開始・終了ノードは反対ハンドルを持たないため、Ctrl 有無にかかわらず常に独立移動
 
 ### 描画サイズとヒット判定の分離
@@ -124,7 +122,7 @@ nodes = [
 
 - canvas Y 軸は上が 0（スクリーン座標）→ ベジェ変換は `by = 1 - cy/inner`
 - パディング `_pad = size * 0.085` でキャンバス周囲に余白
-- Y 軸は [-0.5, 1.5] を許容（オーバーシュート表現）
+- Y 軸は **[0, 1] 固定**（A〜B の正規化範囲のみ。オーバーシュートは許容しない）
 - ハンドル X 軸: `handleOut.x ∈ [anchor.x, 次アンカーX]`、`handleIn.x ∈ [前アンカーX, anchor.x]`（時間軸をまたがない制限）
 
 ### AE ↔ cubic-bezier 変換（現行・暫定）
@@ -149,7 +147,7 @@ lP1y = (handleOut.y - va) / (vb - va)   // va,vb = 前後アンカーの y
 ### 多ノード適用フロー（hostscript.jsx）
 
 nodes が 3 点以上の場合、`_applyMultiNodeEase` が:
-1. 中間ノードをループ（**後ろから**）して `prop.addKey()` で AE に中間 KF を **HOLD 補間**で生成
+1. 中間ノードをループ（**後ろから**）して `prop.addKey()` で AE に中間 KF を **BEZIER 補間**で生成
 2. 各挿入後、既存 `insertedIndices` のうち `>= newIdx` のものを +1 補正（インデックスズレ防止）
 3. セグメントごとにローカル座標へ変換した bezier パラメータで `s = [[...], ...]` 配列を構築
 4. `prop.expression = _buildCtvExpr(segsJson)` でエクスプレッションを一括書き込み
@@ -169,6 +167,21 @@ function applyEase(argsJson) {
     return JSON.stringify({ status: 'ok', count: n });
 }
 ```
+
+### live 参照 vs disconnected 参照（ExtendScript）
+
+`comp.selectedProperties` は **disconnected 参照**、`comp.layer(l).property(...)` は **live 参照**。この違いが重要：
+
+| 操作 | disconnected 参照 | live 参照 |
+|---|---|---|
+| `keySelected()` | 動く | 常に false |
+| `getTemporalEaseAtKey()` | 未定義エラー | 動く |
+| `prop.expression =` | 反映されないことがある | 動く |
+
+**解決策（`getKfCurve` / `applyEase` で実装済み）**:
+1. `comp.selectedProperties`（disconnected）で選択KF時刻を収集
+2. `_findLivePropByTimes(propGroup, times)` でその時刻に一致する live property を探す
+3. expression 書き込み・`getTemporalEaseAtKey` は live 参照で行う
 
 ### AE キーフレーム API チートシート
 
@@ -190,12 +203,8 @@ if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 - **`typeof` でプロパティメソッドを確認できない**: AE オブジェクトのメソッドは `typeof prop.getTemporalEaseAtKey` が `'undefined'` を返すことがあるが、実際には呼び出せない（未定義エラーになる）。メソッドの存在確認には `typeof` ではなく `try-catch` を使う。
 - **`JSON` が存在しない**: `typeof JSON === 'undefined'`。`hostscript.jsx` 先頭の JSON ポリフィルで対処済み。新規 JSX ファイルを作る場合も同様のポリフィルが必要。
 - **`// @` で始まるコメントは ExtendScript がプリプロセッサ命令と解釈して構文エラーになる**: JSX 内では `//` の後に `@` を書かない。
-- **`comp.selectedProperties` 参照と layer 階層参照の使い分け**（現行 `getKfCurve` で重要）:
-  - `comp.selectedProperties` 参照（disconnected）: `keySelected()` / `keyTime()` / `keyValue()` / `setTemporalEaseAtKey()` は動く。`getTemporalEaseAtKey()` は未定義エラーになる。
-  - `comp.layer(l)` 階層参照（live）: `getTemporalEaseAtKey()` は動く。`keySelected()` は常に false を返す。
-  - **解決策**: (1) `comp.selectedProperties` で選択KFの時刻を収集、(2) `_findLivePropByTimes(propGroup, times)` でその時刻に一致する live property を探す。`getKfCurve()` に参照実装がある。
-  - **将来**: エクスプレッション方式では `getTemporalEaseAtKey` を使わなくなるためこの問題は消滅する。
 - **`KeyframeEase.speed` は非負数**: `Math.abs()` を必ず挟む。逆算時は `segTin / Math.abs(segVin)` で符号を除去しないと値が減少するセグメントで P1y/P2y が鏡像になる（v0.6.1 修正済み）。
+- **多次元プロパティの `valueDelta` / `segVin` の使い分け**: `calcAeEase` の `valueDelta` は第1次元の符号付き差（`vB[0] - vA[0]`）で渡す。`getKfCurve` の `segVin`/`segVout` はユークリッド距離（`segDists`）を使う（X 成分のみでは Y/Z 主体の動きで誤差が出るため）。
 
 ## コーディング規則
 
@@ -219,3 +228,11 @@ if (prop.matchName === 'ADBE Position') prop.dimensionsSeparated = true;
 ```powershell
 powershell -Command "[System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture; Get-Date -Format 'ddd MMM dd HH:mm:ss JST yyyy'"
 ```
+
+## ドキュメント構成
+
+| ファイル | 内容 |
+|---|---|
+| `DESIGN.md` | 設計思想・エクスプレッション仕様・Newton 法の詳細・フェーズ別実装状況 |
+| `.ai/SOUL.md` | プロジェクトの核心的な設計理念 |
+| `.ai/DESIGN.md` | AI との設計検討ログ（実装とは独立した思考記録） |
